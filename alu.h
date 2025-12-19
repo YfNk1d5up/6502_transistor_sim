@@ -3,6 +3,8 @@
 #include "fulladder.h"
 #include <stdlib.h>
 
+// --- 1-bit ALU ---
+
 typedef struct {
     // Basic operations
     FullAdder1Bit add;
@@ -83,6 +85,7 @@ void alu_bit_eval(ALUBit *bit) {
 }
 
 // --- N-bit ALU ---
+
 typedef struct {
     int N;
     ALUBit *bits;  // Array of ALUBit

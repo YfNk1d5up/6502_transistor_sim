@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "alu.h"
+#include "../alu.h"
 
 // Convert Slot to string for printing
 const char* S(Slot s) {

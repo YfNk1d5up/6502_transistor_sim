@@ -1,5 +1,5 @@
-#include "helpers.h"
-#include "fulladder.h"
+#include "../helpers.h"
+#include "../fulladder.h"
 #include <stdio.h>
 #include <math.h>
 

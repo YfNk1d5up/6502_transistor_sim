@@ -1,6 +1,8 @@
 #ifndef TRANSISTOR_H
 #define TRANSISTOR_H
 
+#include <stdlib.h>
+
 typedef enum {
     SIG_0 = 0,
     SIG_1 = 1,
@@ -13,8 +15,9 @@ typedef struct {
 
 
 typedef struct {
-    Slot *slots;
+    Slot **slots;
     int n_slots;
+    int capacity;
     Slot resolved;
 } Node;
 
@@ -46,12 +49,20 @@ void transistor_eval(Transistor *t) {
     }
 }
 
+void node_add_slot(Node *node, Slot *s) {
+    if (node->n_slots >= node->capacity) {
+        node->capacity = node->capacity ? node->capacity * 2 : 8;
+        node->slots = realloc(node->slots, sizeof(Slot*) * node->capacity);
+    }
+    node->slots[node->n_slots++] = s;
+}
+
 void node_resolve(Node *n) {
     int has0 = 0;
     int has1 = 0;
     for (int i = 0; i < n->n_slots; i++) {
-        if (n->slots[i].value == SIG_0) has0 = 1;
-        if (n->slots[i].value == SIG_1) has1 = 1;
+        if (n->slots[i]->value == SIG_0) has0 = 1;
+        if (n->slots[i]->value == SIG_1) has1 = 1;
     }
     if (has0 && has1) {
         n->resolved.value = SIG_Z; // contention
