@@ -118,7 +118,7 @@ void dff1_eval(DFlipFlop1Bit *ff) {
 typedef struct {
     int N;
 
-    Slot *D;     // input bus [width]
+    Slot **D;     // input bus [width]
     Slot *Q;     // output bus [width]
     Slot *Q_not; // optional
 
@@ -127,7 +127,7 @@ typedef struct {
     DLatch *bits;
 } NBitRegister;
 
-void nreg_init(NBitRegister *r, int N, Slot *D, Slot *Q, Slot *CLK) {
+void nreg_init(NBitRegister *r, int N, Slot **D, Slot *Q, Slot *CLK) {
     r->N = N;
     r->D = D;
     r->Q = Q;
@@ -137,7 +137,7 @@ void nreg_init(NBitRegister *r, int N, Slot *D, Slot *Q, Slot *CLK) {
     r->Q_not = malloc(sizeof(Slot*));
 
     for (int i = 0; i < N; i++) {
-        dlatch_init(&r->bits[i], &D[i], CLK);
+        dlatch_init(&r->bits[i], D[i], CLK);
 
         r->Q[i] = r->bits[i].Q;
     }

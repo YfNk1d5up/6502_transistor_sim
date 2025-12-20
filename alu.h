@@ -48,6 +48,7 @@ void alu_bit_init(ALUBit *bit, Slot *A, Slot *B, Slot *Cin) {
     bit->op_or->value  = SIG_0;
     bit->op_xor->value = SIG_0;
     bit->op_sub->value = SIG_0;
+    bit->result.value = SIG_Z;   // initialize ALU result to high-Z
 
     // XOR B with op_sub (B ^ sub)
     xor_init(&bit->xor_b_sub, B, bit->op_sub);
@@ -90,7 +91,7 @@ void alu_bit_eval(ALUBit *bit) {
     or_eval(&bit->or3);
 
     // Final output
-    bit->result = bit->or3.out.resolved;
+    bit->result.value = bit->or3.out.resolved.value;
 }
 
 // --- N-bit ALU ---
@@ -148,6 +149,7 @@ void alu_nbit_init(ALUNBit *alu, int N, Slot *A, Slot *B) {
 
         Slot *cin = i == 0 ? &alu->op_sub : &alu->bits[i-1].add.cout;
         alu_bit_init(b, &A[i], &B[i], cin);
+        alu->result[i] = &alu->bits[i].result;
     }
 
     // --- Setup permanent flag hardware ---

@@ -7,7 +7,7 @@
 typedef struct {
     int N; 
     Slot *CLK;      // shared clock
-    Slot *inputD;   // shared input bus (8-bit)
+    Slot **inputD;   // shared input bus (8-bit)
     Node *outputQ;  // shared output bus (8-bit)
 
     // Registers
@@ -66,11 +66,10 @@ typedef struct {
 } RegFileEn;
 
 // Initialize the regfile
-void regfile_init(RegFile *rf, int N, Slot *CLK, Slot *inputD, Node *outputQ, RegFileEn *en) {
+void regfile_init(RegFile *rf, int N, Slot *CLK, Slot **inputD, RegFileEn *en) {
     rf->N = N;
     rf->CLK = CLK;
     rf->inputD = inputD;
-    rf->outputQ = outputQ;
 
     // Allocate storage
     rf->A   = malloc(sizeof(Slot) * N);
