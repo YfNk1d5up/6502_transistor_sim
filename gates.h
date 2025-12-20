@@ -173,7 +173,7 @@ static inline void nor_eval(NORGate *g) {
 typedef struct {
     // Enable logic
     NOTGate not_in;
-    ANDGate and_p;
+    NANDGate and_p;
     ANDGate and_n;
 
     // Output node
@@ -193,8 +193,8 @@ void tristate_init(TriStateGate *g, Slot *in, Slot *en) {
     g->out.n_slots = 2;
 
     not_init(&g->not_in, in);
-    and_init(&g->and_p, &g->not_in.out.resolved, en);
-    and_init(&g->and_n, in, en);
+    nand_init(&g->and_p, in, en);
+    and_init(&g->and_n, &g->not_in.out.resolved, en);
 
     g->pmos = (Transistor){
         PMOS,
@@ -215,7 +215,7 @@ void tristate_eval(TriStateGate *g) {
     g->out_slots[1]->value = SIG_Z;
 
     not_eval(&g->not_in);
-    and_eval(&g->and_p);
+    nand_eval(&g->and_p);
     and_eval(&g->and_n);
 
     transistor_eval(&g->pmos);

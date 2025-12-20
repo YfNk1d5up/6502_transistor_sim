@@ -73,7 +73,7 @@ int main() {
             printf("\n");
         }
         printf("\nOutput of register %d with EN_OUT = 1:\n", r);
-        for (int i = 0; i < N; i++) printf("%d ", outputQ[i].resolved.value);
+        for (int i = 0; i < N; i++) printf("%d ", rf.outputQ[i].resolved.value);
         printf("\n");
         regEn[r]->value = SIG_0;
         en.EN_OUT.value = SIG_0;

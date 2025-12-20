@@ -161,13 +161,14 @@ void regfile_init(RegFile *rf, int N, Slot *CLK, Slot *inputD, Node *outputQ, Re
         tristate_init(&rf->tsPCL[i], &rf->PCL[i], &rf->enPCL_out[i].out.resolved);
         tristate_init(&rf->tsPCH[i], &rf->PCH[i], &rf->enPCH_out[i].out.resolved);
 
-        node_add_slot(&rf->outputQ[i], &rf->tsA[i].out.resolved);
-        node_add_slot(&rf->outputQ[i], &rf->tsX[i].out.resolved);
-        node_add_slot(&rf->outputQ[i], &rf->tsY[i].out.resolved);
-        node_add_slot(&rf->outputQ[i], &rf->tsSP[i].out.resolved);
-        node_add_slot(&rf->outputQ[i], &rf->tsP[i].out.resolved);
-        node_add_slot(&rf->outputQ[i], &rf->tsPCL[i].out.resolved);
-        node_add_slot(&rf->outputQ[i], &rf->tsPCH[i].out.resolved);
+        rf->outputQ[i].slots[0] = &rf->tsA[i].out.resolved;
+        rf->outputQ[i].slots[1] = &rf->tsX[i].out.resolved;
+        rf->outputQ[i].slots[2] = &rf->tsY[i].out.resolved;
+        rf->outputQ[i].slots[3] = &rf->tsSP[i].out.resolved;
+        rf->outputQ[i].slots[4] = &rf->tsP[i].out.resolved;
+        rf->outputQ[i].slots[5] = &rf->tsPCL[i].out.resolved;
+        rf->outputQ[i].slots[6] = &rf->tsPCH[i].out.resolved;
+
     }
 }
 
