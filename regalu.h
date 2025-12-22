@@ -25,9 +25,9 @@ typedef struct {
 } RegALU;
 
 typedef struct {
-    Slot EN_A;
-    Slot EN_B;
-    Slot EN_OUT;
+    Slot *EN_A;
+    Slot *EN_B;
+    Slot *EN_OUT;
 } RegAluEn;
 
 void alu_init(RegALU *alu, int N, Slot *CLK, Slot **inputD, RegAluEn *en)
@@ -45,8 +45,8 @@ void alu_init(RegALU *alu, int N, Slot *CLK, Slot **inputD, RegAluEn *en)
     }
 
     // Registers
-    nreg_init(&alu->regA,   N, alu->inputD, alu->A,   &en->EN_A);
-    nreg_init(&alu->regB,   N, alu->inputD, alu->B,   &en->EN_B);
+    nreg_init(&alu->regA,   N, alu->inputD, alu->A,   en->EN_A);
+    nreg_init(&alu->regB,   N, alu->inputD, alu->B,   en->EN_B);
 
     // Core ALU uses register outputs
     alu_nbit_init(&alu->core, N, alu->A, alu->B);
@@ -56,7 +56,7 @@ void alu_init(RegALU *alu, int N, Slot *CLK, Slot **inputD, RegAluEn *en)
     alu->outputQ = malloc(sizeof(Slot*) * N);
 
     for (int i = 0; i < N; i++) {
-        tristate_init(&alu->tsOUT[i], alu->core.result[i], &en->EN_OUT);
+        tristate_init(&alu->tsOUT[i], alu->core.result[i], en->EN_OUT);
         alu->outputQ[i] = &alu->tsOUT[i].out.resolved;
     }
     
