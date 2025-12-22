@@ -119,38 +119,63 @@ typedef struct {
     int N;
 
     Slot **D;     // input bus [width]
+    Slot *REG;  // internal output
     Slot *Q;     // output bus [width]
     Slot *Q_not; // optional
 
     Slot *CLK;    // shared enable (clock)
 
     DLatch *bits;
+
+    // Controls
+    Slot *LOAD_Reg;
+    Slot *EN_Reg;
+    ANDGate andLoadReg;
+
+    // Output Enable logic 
+    ANDGate *andEnReg;
+    TriStateGate *tsRegQ;
+    TriStateGate *tsRegQNot;
 } NBitRegister;
 
-void nreg_init(NBitRegister *r, int N, Slot **D, Slot *Q, Slot *CLK) {
+void nreg_init(NBitRegister *r, int N, Slot **D, Slot *Q, Slot *LOAD, Slot *EN, Slot *CLK) {
     r->N = N;
     r->D = D;
     r->Q = Q;
+    r->LOAD_Reg = LOAD;
+    r->EN_Reg = EN;
     r->CLK = CLK;
 
     r->bits = malloc(sizeof(DLatch) * N);
     r->Q_not = malloc(sizeof(Slot*));
 
-    for (int i = 0; i < N; i++) {
-        dlatch_init(&r->bits[i], D[i], CLK);
+    and_init(&r->andLoadReg, r->LOAD_Reg, r->CLK);
 
-        r->Q[i] = r->bits[i].Q;
+    for (int i = 0; i < N; i++) {
+        dlatch_init(&r->bits[i], D[i], &r->andLoadReg.out.resolved);
+    }
+
+    r->tsRegQ   = malloc(sizeof(TriStateGate) * N);
+    r->tsRegQNot   = malloc(sizeof(TriStateGate) * N);
+    for (int i = 0; i < N; i++) {
+        tristate_init(&r->tsRegQ[i], &r->bits[i].Q, r->EN_Reg);
+        tristate_init(&r->tsRegQNot[i], &r->bits[i].Q_not, r->EN_Reg);
+        r->Q[i] = r->tsRegQ[i].out.resolved;
+        r->Q_not[i] = r->tsRegQNot[i].out.resolved;
     }
 }
 
 void nreg_eval(NBitRegister *r) {
+    and_eval(&r->andLoadReg);
     for (int i = 0; i < r->N; i++) {
         dlatch_eval(&r->bits[i]);
     }
 
-    // Commit outputs (optional but clean)
+    // Commit outputs
     for (int i = 0; i < r->N; i++) {
-        r->Q[i].value = r->bits[i].Q.value;
-        r->Q_not[i].value = r->bits[i].Q_not.value;
+        tristate_eval(&r->tsRegQ[i]);
+        tristate_eval(&r->tsRegQNot[i]);
+        r->Q[i] = r->tsRegQ[i].out.resolved;
+        r->Q_not[i] = r->tsRegQNot[i].out.resolved;
     }
 }

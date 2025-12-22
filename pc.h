@@ -8,9 +8,17 @@
 // --- Program Counter ---
 
 typedef struct {
+    Slot *LOAD_PCL;
+    Slot *LOAD_PCH;
+    Slot *EN_PCL;
+    Slot *EN_PCH;
+    Slot *EN_CNT;
+} PCCtl;
+
+typedef struct {
     int N;              // bits per register (8)
     Slot *CLK;
-    Slot *PC_EN;
+    PCCtl PC_CTL;
 
     // External registers (from regfile)
     NBitRegister *PCL;
@@ -41,13 +49,13 @@ void pc_init(
     ProgramCounter *pc,
     int N,
     Slot *CLK,
-    Slot *PC_EN,
+    PCCtl PC_CTL,
     NBitRegister *PCL,
     NBitRegister *PCH
 ) {
     pc->N     = N;
     pc->CLK   = CLK;
-    pc->PC_EN = PC_EN;
+    pc->PC_CTL = PC_CTL;
     pc->PCL   = PCL;
     pc->PCH   = PCH;
 
@@ -69,11 +77,11 @@ void pc_init(
         pc->PCH_Q[i].value = SIG_0;
     }
 
-    nreg_init(pc->PCL, N, pc->L, pc->PCL_Q, pc->CLK);
-    nreg_init(pc->PCH, N, pc->H, pc->PCH_Q, pc->CLK);
+    nreg_init(pc->PCL, N, pc->L, pc->PCL_Q, pc->PC_CTL.LOAD_PCL, pc->PC_CTL.EN_PCL, pc->CLK);
+    nreg_init(pc->PCH, N, pc->H, pc->PCH_Q, pc->PC_CTL.LOAD_PCH, pc->PC_CTL.EN_PCH, pc->CLK);
 
     // Clock enable gate
-    and_init(&pc->clk_gate, CLK, PC_EN);
+    and_init(&pc->clk_gate, CLK, pc->PC_CTL.EN_CNT);
     // --- Incrementers ---
     // PCL + 1
     for (int i = 1; i < N; i++) {

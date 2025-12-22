@@ -20,9 +20,7 @@ typedef struct {
     NBitRegister regPCL; // Program Counter low byte
     NBitRegister regPCH; // Program Counter high byte
 
-    ProgramCounter pc;
-
-    // Internal storage
+    // Registers Outputs
     Slot *AC;  
     Slot *X;  
     Slot *Y;  
@@ -30,6 +28,7 @@ typedef struct {
     Slot *P;  
     Slot *PCL; // 8 bits
     Slot *PCH; // 8 bits
+
 
     // AND gates for output enable
     ANDGate *andAC;
@@ -40,33 +39,26 @@ typedef struct {
     ANDGate *andPCL;
     ANDGate *andPCH;
 
-    TriStateGate *tsAC;
-    TriStateGate *tsX;
-    TriStateGate *tsY;
-    TriStateGate *tsSP;
-    TriStateGate *tsP;
-    TriStateGate *tsPCL;
-    TriStateGate *tsPCH;
-
-    ANDGate *enAC_out;
-    ANDGate *enX_out;
-    ANDGate *enY_out;
-    ANDGate *enSP_out;
-    ANDGate *enP_out;
-    ANDGate *enPCL_out;
-    ANDGate *enPCH_out;
+    ProgramCounter pc;
 } RegFile;
 
 typedef struct {
+    Slot *LOAD_AC;
+    Slot *LOAD_X;
+    Slot *LOAD_Y;
+    Slot *LOAD_SP;
+    Slot *LOAD_P;
+    Slot *LOAD_PC;
+    Slot *LOAD_PCL;
+    Slot *LOAD_PCH;
     Slot *EN_AC;
     Slot *EN_X;
     Slot *EN_Y;
     Slot *EN_SP;
     Slot *EN_P;
-    Slot *EN_PC;
+    PCCtl PCCTL;
     Slot *EN_PCL;
     Slot *EN_PCH;
-    Slot *EN_OUT;
 } RegFileEn;
 
 // Initialize the regfile
@@ -96,27 +88,22 @@ void regfile_init(RegFile *rf, int N, Slot *CLK, Slot **inputD, RegFileEn *en) {
     }
 
     // Initialize registers
-    nreg_init(&rf->regAC, N, rf->inputD, rf->AC, en->EN_AC);
-    nreg_init(&rf->regX, N, rf->inputD, rf->X, en->EN_X);
-    nreg_init(&rf->regY, N, rf->inputD, rf->Y, en->EN_Y);
-    nreg_init(&rf->regSP, N, rf->inputD, rf->SP, en->EN_SP);
-    nreg_init(&rf->regP, N, rf->inputD, rf->P, en->EN_P);
-    pc_init(&rf->pc, N, CLK, en->EN_PC, &rf->regPCL, &rf->regPCH);
+    nreg_init(&rf->regAC, N, rf->inputD, rf->AC, en->LOAD_AC, en->EN_AC, rf->CLK);
+    nreg_init(&rf->regX, N, rf->inputD, rf->X, en->LOAD_X, en->EN_X, rf->CLK);
+    nreg_init(&rf->regY, N, rf->inputD, rf->Y, en->LOAD_Y, en->EN_Y, rf->CLK);
+    nreg_init(&rf->regSP, N, rf->inputD, rf->SP, en->LOAD_SP, en->EN_SP, rf->CLK);
+    nreg_init(&rf->regP, N, rf->inputD, rf->P, en->LOAD_P, en->EN_P, rf->CLK);
+
+    en->PCCTL.EN_PCL = en->EN_PCL;
+    en->PCCTL.EN_PCH = en->EN_PCH;
+    pc_init(&rf->pc, N, CLK, en->PCCTL, &rf->regPCL, &rf->regPCH);
     //nreg_init(&rf->regPCL, N, rf->inputD, rf->PCL, en->EN_PCL);
     //nreg_init(&rf->regPCH, N, rf->inputD, rf->PCH, en->EN_PCH);
 
-    // Allocate AND gates for output enable
-    rf->andAC   = malloc(sizeof(ANDGate) * N);
-    rf->andX   = malloc(sizeof(ANDGate) * N);
-    rf->andY   = malloc(sizeof(ANDGate) * N);
-    rf->andSP  = malloc(sizeof(ANDGate) * N);
-    rf->andP   = malloc(sizeof(ANDGate) * N);
-    rf->andPCL = malloc(sizeof(ANDGate) * N);
-    rf->andPCH = malloc(sizeof(ANDGate) * N);
 
     rf->outputQ = malloc(sizeof(Node) * N);
     for (int i = 0; i < N; i++) {
-        rf->outputQ[i].slots = malloc(sizeof(Slot*) * 7); // array of 7 Slot*
+        rf->outputQ[i].slots = malloc(sizeof(Slot*) * 7); // array of 7 Slot* ( for the 7 registers)
         rf->outputQ[i].n_slots = 7;
         for (int j = 0; j < 7; j++) {
             rf->outputQ[i].slots[j] = malloc(sizeof(Slot));  // allocate the actual Slot
@@ -125,54 +112,14 @@ void regfile_init(RegFile *rf, int N, Slot *CLK, Slot **inputD, RegFileEn *en) {
         rf->outputQ[i].resolved.value = SIG_Z;
     }
 
-    rf->tsAC   = malloc(sizeof(TriStateGate) * N);
-    rf->tsX   = malloc(sizeof(TriStateGate) * N);
-    rf->tsY   = malloc(sizeof(TriStateGate) * N);
-    rf->tsSP  = malloc(sizeof(TriStateGate) * N);
-    rf->tsP   = malloc(sizeof(TriStateGate) * N);
-    rf->tsPCL = malloc(sizeof(TriStateGate) * N);
-    rf->tsPCH = malloc(sizeof(TriStateGate) * N);
-
-    rf->enAC_out   = malloc(sizeof(ANDGate) * N);
-    rf->enX_out   = malloc(sizeof(ANDGate) * N);
-    rf->enY_out   = malloc(sizeof(ANDGate) * N);
-    rf->enSP_out  = malloc(sizeof(ANDGate) * N);
-    rf->enP_out   = malloc(sizeof(ANDGate) * N);
-    rf->enPCL_out = malloc(sizeof(ANDGate) * N);
-    rf->enPCH_out = malloc(sizeof(ANDGate) * N);
-
     for (int i = 0; i < N; i++) {
-        and_init(&rf->andAC[i], &rf->AC[i], en->EN_AC);
-        and_init(&rf->andX[i], &rf->X[i], en->EN_X);
-        and_init(&rf->andY[i], &rf->Y[i], en->EN_Y);
-        and_init(&rf->andSP[i], &rf->SP[i], en->EN_SP);
-        and_init(&rf->andP[i], &rf->P[i], en->EN_P);
-        and_init(&rf->andPCL[i], &rf->PCL[i], en->EN_PCL);
-        and_init(&rf->andPCH[i], &rf->PCH[i], en->EN_PCH);
-        and_init(&rf->enAC_out[i],   en->EN_AC,   en->EN_OUT);
-        and_init(&rf->enX_out[i],   en->EN_X,   en->EN_OUT);
-        and_init(&rf->enY_out[i],   en->EN_Y,   en->EN_OUT);
-        and_init(&rf->enSP_out[i],  en->EN_SP,  en->EN_OUT);
-        and_init(&rf->enP_out[i],   en->EN_P,   en->EN_OUT);
-        and_init(&rf->enPCL_out[i], en->EN_PCL, en->EN_OUT);
-        and_init(&rf->enPCH_out[i], en->EN_PCH, en->EN_OUT);
-
-        tristate_init(&rf->tsAC[i],   &rf->AC[i],   &rf->enAC_out[i].out.resolved);
-        tristate_init(&rf->tsX[i],   &rf->X[i],   &rf->enX_out[i].out.resolved);
-        tristate_init(&rf->tsY[i],   &rf->Y[i],   &rf->enY_out[i].out.resolved);
-        tristate_init(&rf->tsSP[i],  &rf->SP[i],  &rf->enSP_out[i].out.resolved);
-        tristate_init(&rf->tsP[i],   &rf->P[i],   &rf->enP_out[i].out.resolved);
-        tristate_init(&rf->tsPCL[i], &rf->PCL[i], &rf->enPCL_out[i].out.resolved);
-        tristate_init(&rf->tsPCH[i], &rf->PCH[i], &rf->enPCH_out[i].out.resolved);
-
-        rf->outputQ[i].slots[0] = &rf->tsAC[i].out.resolved;
-        rf->outputQ[i].slots[1] = &rf->tsX[i].out.resolved;
-        rf->outputQ[i].slots[2] = &rf->tsY[i].out.resolved;
-        rf->outputQ[i].slots[3] = &rf->tsSP[i].out.resolved;
-        rf->outputQ[i].slots[4] = &rf->tsP[i].out.resolved;
-        rf->outputQ[i].slots[5] = &rf->tsPCL[i].out.resolved;
-        rf->outputQ[i].slots[6] = &rf->tsPCH[i].out.resolved;
-
+        node_add_slot(&rf->outputQ[i], &rf->regAC.Q[i]);
+        node_add_slot(&rf->outputQ[i], &rf->regX.Q[i]);
+        node_add_slot(&rf->outputQ[i], &rf->regY.Q[i]);
+        node_add_slot(&rf->outputQ[i], &rf->regSP.Q[i]);
+        node_add_slot(&rf->outputQ[i], &rf->regP.Q[i]);
+        node_add_slot(&rf->outputQ[i], &rf->regPCL.Q[i]);
+        node_add_slot(&rf->outputQ[i], &rf->regPCH.Q[i]);
     }
 }
 
@@ -189,31 +136,6 @@ void regfile_eval(RegFile *rf) {
 
     // Evaluate AND gates
     for (int i = 0; i < rf->N; i++) {
-        and_eval(&rf->andAC[i]);
-        and_eval(&rf->andX[i]);
-        and_eval(&rf->andY[i]);
-        and_eval(&rf->andSP[i]);
-        and_eval(&rf->andP[i]);
-        and_eval(&rf->andPCL[i]);
-        and_eval(&rf->andPCH[i]);
-
-        // Evaluate tri-states
-        and_eval(&rf->enAC_out[i]);
-        and_eval(&rf->enX_out[i]);
-        and_eval(&rf->enY_out[i]);
-        and_eval(&rf->enSP_out[i]);
-        and_eval(&rf->enP_out[i]);
-        and_eval(&rf->enPCL_out[i]);
-        and_eval(&rf->enPCH_out[i]);
-
-        tristate_eval(&rf->tsAC[i]);
-        tristate_eval(&rf->tsX[i]);
-        tristate_eval(&rf->tsY[i]);
-        tristate_eval(&rf->tsSP[i]);
-        tristate_eval(&rf->tsP[i]);
-        tristate_eval(&rf->tsPCL[i]);
-        tristate_eval(&rf->tsPCH[i]);
-
         // Resolve node
         node_resolve(&rf->outputQ[i]);
     }

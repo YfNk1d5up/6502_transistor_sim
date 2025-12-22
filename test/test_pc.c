@@ -28,7 +28,17 @@ int main(void)
        Clock & enable
        -------------------- */
     Slot CLK    = { SIG_0 };
-    Slot PC_EN  = { SIG_0 };
+    PCCtl PCCTL;
+    PCCTL.LOAD_PCH = malloc(sizeof(Slot));
+    PCCTL.LOAD_PCL = malloc(sizeof(Slot));
+    PCCTL.EN_PCH = malloc(sizeof(Slot));
+    PCCTL.EN_PCL = malloc(sizeof(Slot));
+    PCCTL.EN_CNT = malloc(sizeof(Slot));
+    PCCTL.LOAD_PCH->value = SIG_1;
+    PCCTL.LOAD_PCL->value = SIG_1;
+    PCCTL.EN_PCH->value = SIG_1;
+    PCCTL.EN_PCL->value = SIG_1;
+    PCCTL.EN_CNT->value = SIG_1;
 
     /* --------------------
        Register buses
@@ -56,7 +66,8 @@ int main(void)
        Program Counter
        -------------------- */
     ProgramCounter pc;
-    pc_init(&pc, N, &CLK, &PC_EN, &PCL, &PCH);
+    pc_init(&pc, N, &CLK, PCCTL, &PCL, &PCH);
+
 
     /* Connect PC outputs to register inputs */
     //PCL.D = pc.L;
@@ -68,7 +79,7 @@ int main(void)
     printf("Initial state:\n");
     print_pc(PCH, PCL, N);
 
-    PC_EN.value = SIG_1;
+    PCCTL.EN_CNT->value = SIG_1;
 
     for (int cycle = 0; cycle < pow(2, 16) - 1 ; cycle++) {
         /* Rising edge */
@@ -86,7 +97,7 @@ int main(void)
     }
 
     /* Pause PC */
-    PC_EN.value = SIG_0;
+    PCCTL.EN_CNT->value = SIG_0;
 
     printf("\nPC paused:\n");
     for (int i = 0; i < 3; i++) {
