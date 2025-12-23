@@ -1,5 +1,6 @@
 #pragma once
 #include "gates.h"
+#include "helpers.h"
 
 // -------- D LATCH --------
 
@@ -116,66 +117,131 @@ void dff1_eval(DFlipFlop1Bit *ff) {
 // --- N-bit Register ---
 
 typedef struct {
+    Slot **D;      // input bus [N]
+    Slot *LOAD;    // load signal
+    TriStateGate *tsD;
+} RegLoadPort;
+
+typedef struct {
+    Slot *Q;       // output bus [N]
+    Slot *Q_not;   // optional
+    Slot *EN;      // enable
+    TriStateGate *tsQ;
+    TriStateGate *tsQn;
+} RegEnablePort;
+
+typedef struct {
     int N;
 
-    Slot **D;     // input bus [width]
-    Slot *REG;  // internal output
-    Slot *Q;     // output bus [width]
-    Slot *Q_not; // optional
-
-    Slot *CLK;    // shared enable (clock)
-
+    // Storage
     DLatch *bits;
+    Node *internalBufferBus;
 
-    // Controls
-    Slot *LOAD_Reg;
-    Slot *EN_Reg;
-    ANDGate andLoadReg;
+    // Clock
+    Slot *CLK;
 
-    // Output Enable logic 
-    ANDGate *andEnReg;
-    TriStateGate *tsRegQ;
-    TriStateGate *tsRegQNot;
+    // Ports
+    int num_load_ports;
+    int num_enable_ports;
+
+    RegLoadPort *loadports;
+    RegEnablePort  *enableports;
 } NBitRegister;
 
-void nreg_init(NBitRegister *r, int N, Slot **D, Slot *Q, Slot *LOAD, Slot *EN, Slot *CLK) {
+void nreg_add_load_port(
+    NBitRegister *r,
+    int wp,
+    Slot **D,
+    Slot *LOAD
+) {
+    RegLoadPort *p = &r->loadports[wp];
+    p->D = malloc(sizeof(Slot*) * r->N);
+    p->LOAD = LOAD;
+
+    p->tsD  = malloc(sizeof(TriStateGate) * r->N);
+
+    for (int i = 0; i < r->N; i++) {
+        tristate_init(&p->tsD[i],  D[i],  p->LOAD);
+        p->D[i] = &p->tsD[i].out.resolved;
+        node_add_slot(&r->internalBufferBus[i], p->D[i]);
+    }
+}
+
+void nreg_add_enable_port(
+    NBitRegister *r,
+    int rp,
+    Slot *Q,
+    Slot *Q_not,
+    Slot *EN
+) {
+    RegEnablePort *p = &r->enableports[rp];
+    p->Q = Q;
+    p->Q_not = Q_not;
+    p->EN = EN;
+
+    p->tsQ  = malloc(sizeof(TriStateGate) * r->N);
+    p->tsQn = malloc(sizeof(TriStateGate) * r->N);
+
+    for (int i = 0; i < r->N; i++) {
+        tristate_init(&p->tsQ[i],  &r->bits[i].Q,     EN);
+        tristate_init(&p->tsQn[i], &r->bits[i].Q_not, EN);
+
+        Q[i]     = p->tsQ[i].out.resolved;
+        Q_not[i] = p->tsQn[i].out.resolved;
+    }
+}
+
+void nreg_init(
+    NBitRegister *r,
+    int N,
+    int num_write_ports,
+    int num_read_ports,
+    Slot *CLK
+) {
     r->N = N;
-    r->D = D;
-    r->Q = Q;
-    r->LOAD_Reg = LOAD;
-    r->EN_Reg = EN;
     r->CLK = CLK;
 
+    r->num_load_ports = num_write_ports;
+    r->num_enable_ports  = num_read_ports;
+
     r->bits = malloc(sizeof(DLatch) * N);
-    r->Q_not = malloc(sizeof(Slot*));
 
-    and_init(&r->andLoadReg, r->LOAD_Reg, r->CLK);
+    r->internalBufferBus  = malloc(sizeof(Node) * N);
+    allocate_node(r->internalBufferBus,  r->num_load_ports, N);
 
+    r->loadports = malloc(sizeof(RegLoadPort) * num_write_ports);
+    r->enableports = malloc(sizeof(RegEnablePort) * num_read_ports);
+
+    // Initialize storage latches with dummy D/EN (patched later)
     for (int i = 0; i < N; i++) {
-        dlatch_init(&r->bits[i], D[i], &r->andLoadReg.out.resolved);
-    }
-
-    r->tsRegQ   = malloc(sizeof(TriStateGate) * N);
-    r->tsRegQNot   = malloc(sizeof(TriStateGate) * N);
-    for (int i = 0; i < N; i++) {
-        tristate_init(&r->tsRegQ[i], &r->bits[i].Q, r->EN_Reg);
-        tristate_init(&r->tsRegQNot[i], &r->bits[i].Q_not, r->EN_Reg);
-        r->Q[i] = r->tsRegQ[i].out.resolved;
-        r->Q_not[i] = r->tsRegQNot[i].out.resolved;
+        r->bits[i].Q.value     = SIG_0;
+        r->bits[i].Q_not.value = SIG_1;
+        dlatch_init(&r->bits[i], &r->internalBufferBus[i].resolved, r->CLK);
     }
 }
 
 void nreg_eval(NBitRegister *r) {
-    and_eval(&r->andLoadReg);
+    // Evaluate write enables
+    for (int w = 0; w < r->num_load_ports; w++) {
+        for (int i = 0; i < r->N; i++) {
+            tristate_eval(&r->loadports[w].tsD[i]);
+        }
+    }
+
+    // Evaluate storage
     for (int i = 0; i < r->N; i++) {
+        node_resolve(&r->internalBufferBus[i]);
         dlatch_eval(&r->bits[i]);
     }
 
-    // Commit outputs
-    for (int i = 0; i < r->N; i++) {
-        tristate_eval(&r->tsRegQ[i]);
-        tristate_eval(&r->tsRegQNot[i]);
-        r->Q[i] = r->tsRegQ[i].out.resolved;
-        r->Q_not[i] = r->tsRegQNot[i].out.resolved;
+    // Evaluate read ports
+    for (int rp = 0; rp < r->num_enable_ports; rp++) {
+        RegEnablePort *p = &r->enableports[rp];
+        for (int i = 0; i < r->N; i++) {
+            tristate_eval(&p->tsQ[i]);
+            tristate_eval(&p->tsQn[i]);
+            p->Q[i]     = p->tsQ[i].out.resolved;
+            p->Q_not[i] = p->tsQn[i].out.resolved;
+        }
     }
 }

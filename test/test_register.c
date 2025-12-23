@@ -42,7 +42,13 @@ int main(void) {
     EN.value = SIG_0;
 
     NBitRegister reg;
-    nreg_init(&reg, N, D, Q, &LOAD, &EN, &CLK);
+    nreg_init(&reg, N, 1, 1, &CLK); // 1 write port, 1 read port
+
+    // Write ports
+    nreg_add_load_port(&reg, 0, D, &LOAD);
+
+    // Read ports
+    nreg_add_enable_port(&reg, 0, Q, Q_not, &EN);
     printf("=== 8-bit register test ===\n");
 
     // ---- Cycle 0: load 10101010 ----

@@ -5,37 +5,7 @@
 #include "../pc.h"
 #include "../register.h"
 #include "../gates.h"
-
-const char* S(Slot *s) {
-    switch (s->value) {
-        case SIG_0: return "0";
-        case SIG_1: return "1";
-        case SIG_Z: return "Z";
-    }
-    return "?";
-}
-
-void print_slot_ptr(const char *name, Slot *slot) {
-    printf("%s = ", name);
-    printf("%s", S(slot));
-    printf("\n");
-}
-
-void print_bus(const char *name, Slot *bus, int n) {
-    printf("%s = ", name);
-    for (int i = 0; i < n; i++) { // MSB first
-        printf("%s", S(&bus[i]));
-    }
-    printf("\n");
-}
-
-void print_bus_ptr(const char *name, Slot **bus, int n) {
-    printf("%s = ", name);
-    for (int i = 0; i < n; i++) { // MSB first
-        printf("%s", S(bus[i]));
-    }
-    printf("\n");
-}
+#include "../helpers.h"
 
 static void print_pc(Slot *busL, Slot *busH, int N)
 {
@@ -174,16 +144,16 @@ int main(void)
        -------------------- */
     printf("Initial state:\n");
 
-    print_bus("PCLSBusQ", pc.PCLSBusQ, N);
-    print_bus("PCHSBusQ", pc.PCHSBusQ, N);
-    print_bus("PCLBusQ", pc.PCLBusQ, N);
-    print_bus_ptr("PCLBusD", pc.PCLBusD, N);
-    print_bus("PCHBusQ", pc.PCHBusQ, N);
-    print_bus_ptr("PCHBusD", pc.PCHBusD, N);
-    print_bus("PCL_DB", PCL_DB, N);
-    print_bus("PCL_ADL", PCL_ADL, N);
-    print_bus("PCH_DB", PCH_DB, N);
-    print_bus("PCH_ADH", PCH_ADH, N);
+    print_slots("PCLSBusQ", pc.PCLSBusQ, N);
+    print_slots("PCHSBusQ", pc.PCHSBusQ, N);
+    print_slots("PCLBusQ", pc.PCLBusQ, N);
+    print_slots_ptr("PCLBusD", pc.PCLBusD, N);
+    print_slots("PCHBusQ", pc.PCHBusQ, N);
+    print_slots_ptr("PCHBusD", pc.PCHBusD, N);
+    print_slots("PCL_DB", PCL_DB, N);
+    print_slots("PCL_ADL", PCL_ADL, N);
+    print_slots("PCH_DB", PCH_DB, N);
+    print_slots("PCH_ADH", PCH_ADH, N);
 
     EN_PCL_DB->value = SIG_0;
     EN_PCH_DB->value = SIG_0;

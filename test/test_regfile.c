@@ -1,40 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../regfile.h"
-
-/* ---------------- Helpers ---------------- */
-
-static void print_bus(const char *name, Node *bus, int N) {
-    printf("%s: ", name);
-    for (int i = 0; i < N; i++)
-        printf("%d ", bus[i].resolved.value);
-    printf("\n");
-}
-
-static void print_slots(const char *name, Slot *s, int N) {
-    printf("%s: ", name);
-    for (int i = 0; i < N; i++)
-        printf("%d ", s[i].value);
-    printf("\n");
-}
-
-static void print_bus_slots(const char *name, Node *bus, int N) {
-    printf("%s (all slots):\n", name);
-
-    for (int bit = 0; bit < N; bit++) {
-        printf("  [%d] ", bit);
-
-        for (int s = 0; s < bus[bit].n_slots; s++) {
-            printf("%d ", bus[bit].slots[s]->value);
-        }
-
-        printf("-> %d\n", bus[bit].resolved.value);
-    }
-}
+#include "../helpers.h"
 
 static void dump(RegFile *rf) {
 
     /* ---- Register output drivers ---- */
+    /*
     print_slots("AC_DB  ", rf->AC_DB,   rf->N);
     print_slots("AC_SB  ", rf->AC_SB,   rf->N);
 
@@ -51,6 +23,7 @@ static void dump(RegFile *rf) {
 
     print_slots("PCH_DB ", rf->PCH_DB,  rf->N);
     print_slots("PCH_ADH", rf->PCH_ADH, rf->N);
+    */
 
     /* ---- Resolved buses ---- */
     print_bus("DB ",  rf->dataBus,     rf->N);
@@ -157,17 +130,24 @@ int main(void) {
     int A[8]  = {1,0,1,0,1,0,1,0};
     int X[8]  = {0,1,0,1,0,1,0,1};
     int SP[8] = {1,1,0,0,1,1,0,0};
-    int PCLS[8] = {1,0,0,1,1,1,1,0};
+    int PCLS[8] = {1,1,1,1,1,1,1,1};
+    int PCHS[8] = {1,0,0,0,0,0,0,0};
 
     /* -------- Load AC from SB -------- */
-    
-    // initialization issue without first eval
-    regfile_eval(&rf);
-
     // Looking at PCL on ADL at all cycles
     en.LOAD_PCL_PCL->value = SIG_1;
     en.EN_PCL_ADL->value = SIG_1;
+
+    // Looking at PCH on ADH at all cycles
+    en.LOAD_PCH_PCH->value = SIG_1;
+    en.EN_PCH_ADH->value = SIG_1;
+    
     en.EN_I_PC->value = SIG_1;
+    
+    // initialization issue without first eval
+    regfile_eval(&rf);
+    printf("Inititial state buses\n");
+    dump(&rf);
 
     printf("Load AC from Stack Bus\n");
     bus_drive(SB_IN, A, N);
@@ -194,6 +174,8 @@ int main(void) {
     CLK.value = SIG_1;
     regfile_eval(&rf);
     CLK.value = SIG_0;
+
+    dump(&rf);
 
     en.LOAD_SB_X->value = SIG_0;
     bus_release(SB_IN, N);
@@ -222,28 +204,22 @@ int main(void) {
     en.EN_X_SB->value = SIG_0;
     en.EN_AC_DB->value = SIG_0;
 
-    /* -------- RESET PCL to 1 -------- */
-    printf("Loading to PLCS to jump counter\n");
+    /* -------- jump counter -------- */
+    printf("Loading to PLCS & PCHS to jump counter\n");
     en.EN_PCL_ADL->value = SIG_0;
+    en.EN_PCH_ADH->value = SIG_0;
     bus_drive(ADL_IN, PCLS, N);
+    bus_drive(ADH_IN, PCHS, N);
     en.LOAD_PCL_PCL->value = SIG_0;
+    en.LOAD_PCH_PCH->value = SIG_0;
     en.EN_I_PC->value = SIG_0;
     en.LOAD_ADL_PCL->value = SIG_1;
+    en.LOAD_ADH_PCH->value = SIG_1;
 
     CLK.value = SIG_1;
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
-
-    CLK.value = SIG_1;
-    regfile_eval(&rf);
-    CLK.value = SIG_0;
-    dump(&rf);
-
-    CLK.value = SIG_1;
-    regfile_eval(&rf);
-    CLK.value = SIG_0;
     dump(&rf);
 
     CLK.value = SIG_1;
@@ -254,10 +230,14 @@ int main(void) {
 
     printf("Restart counter\n");
     bus_release(ADL_IN, N);
+    bus_release(ADH_IN, N);
     en.EN_PCL_ADL->value = SIG_1;
+    en.EN_PCH_ADH->value = SIG_1;
     en.LOAD_PCL_PCL->value = SIG_1; 
+    en.LOAD_PCH_PCH->value = SIG_1;
     en.EN_I_PC->value = SIG_1;
     en.LOAD_ADL_PCL->value = SIG_0;
+    en.LOAD_ADH_PCH->value = SIG_0;
 
     CLK.value = SIG_1;
     regfile_eval(&rf);
@@ -274,12 +254,16 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
+    dump(&rf);
+
     en.LOAD_SB_SP->value = SIG_0;
     bus_release(SB_IN, N);
     
     CLK.value = SIG_1;
     regfile_eval(&rf);
     CLK.value = SIG_0;
+
+    dump(&rf);
 
     en.EN_SP_SB->value = SIG_1;
     

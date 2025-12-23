@@ -3,6 +3,7 @@
 #include "fulladder.h"
 #include "register.h"
 #include "gates.h"
+#include "helpers.h"
 #include <stdlib.h>
 
 // --- Program Counter ---
@@ -149,7 +150,6 @@ void pc_eval(ProgramCounter *pc)
         pc->incL[i].value = SIG_0;
         pc->incH[i].value = SIG_0;
     }
-    
     // --- LOW BYTE ---
     and_eval(&pc->clk_gate);
     pc->incL[0] = pc->clk_gate.out.resolved;
