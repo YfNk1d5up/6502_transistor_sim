@@ -8,19 +8,22 @@
 // --- Program Counter ---
 
 typedef struct {
-    Slot *LOAD_PCL;
-    Slot *LOAD_PCH;
-    Slot *EN_PCL;
-    Slot *EN_PCH;
-    Slot *EN_CNT;
-} PCCtl;
-
-typedef struct {
     int N;              // bits per register (8)
     Slot *CLK;
-    PCCtl PC_CTL;
+    Slot *LOAD_PCL_PCL;
+    Slot *LOAD_PCH_PCH;
+    Slot *EN_I_PC;
+
+    Slot **PCLBusD; // Internal Program Counter Low bus
+    Slot **PCHBusD; // Internal Program Counter High bus
+    Slot *PCLSBusQ; // Internal Program Counter Select Low to increment logic
+    Slot *PCHSBusQ; // Internal Program Counter Select High to increment logic 
+    Slot *PCLBusQ; 
+    Slot *PCHBusQ; 
 
     // External registers (from regfile)
+    NBitRegister *PCLS;
+    NBitRegister *PCHS;
     NBitRegister *PCL;
     NBitRegister *PCH;
 
@@ -49,15 +52,44 @@ void pc_init(
     ProgramCounter *pc,
     int N,
     Slot *CLK,
-    PCCtl PC_CTL,
+    Slot *one,
+    Slot *zero,
+    Slot *dummy,
+    NBitRegister *PCLS,
+    NBitRegister *PCHS,
     NBitRegister *PCL,
-    NBitRegister *PCH
+    NBitRegister *PCH,
+    Slot *LOAD_PCL_PCL,
+    Slot *LOAD_PCH_PCH,
+    Slot *EN_I_PC
 ) {
     pc->N     = N;
     pc->CLK   = CLK;
-    pc->PC_CTL = PC_CTL;
+    pc->LOAD_PCL_PCL = LOAD_PCL_PCL;
+    pc->LOAD_PCH_PCH = LOAD_PCH_PCH;
+    pc->EN_I_PC = EN_I_PC;
+
+    pc->PCLS = PCLS;
+    pc->PCHS = PCHS;
     pc->PCL   = PCL;
     pc->PCH   = PCH;
+
+    pc->PCLBusD = malloc(sizeof(Slot*) * N);
+    pc->PCHBusD = malloc(sizeof(Slot*) * N);
+    pc->PCLSBusQ = malloc(sizeof(Slot) * N);
+    pc->PCHSBusQ = malloc(sizeof(Slot) * N);
+    pc->PCLBusQ = malloc(sizeof(Slot) * N);
+    pc->PCHBusQ = malloc(sizeof(Slot) * N);
+    for (int i = 0; i < N; i++) {
+        pc->PCLBusQ[i].value = SIG_Z;
+        pc->PCLBusD[i] = &pc->PCLBusQ[i];
+
+        pc->PCHBusQ[i].value = SIG_Z;
+        pc->PCHBusD[i] = &pc->PCHBusQ[i];
+
+        pc->PCLSBusQ[i].value = SIG_Z;
+        pc->PCHSBusQ[i].value = SIG_Z;
+    }
 
     pc->incL = malloc(sizeof(Slot) * N);
     pc->incH = malloc(sizeof(Slot) * N);
@@ -67,21 +99,14 @@ void pc_init(
     pc->PCH_Q = malloc(sizeof(Slot) * N);
 
     for (int i = 0; i < N; i++) {
-        pc->L[i] = malloc(sizeof(Slot));
-        pc->H[i] = malloc(sizeof(Slot));
-        pc->L[i]->value = SIG_0;
-        pc->H[i]->value = SIG_0;
         pc->incL[i].value = SIG_0;
         pc->incH[i].value = SIG_0;
         pc->PCL_Q[i].value = SIG_0;
         pc->PCH_Q[i].value = SIG_0;
     }
 
-    nreg_init(pc->PCL, N, pc->L, pc->PCL_Q, pc->PC_CTL.LOAD_PCL, pc->PC_CTL.EN_PCL, pc->CLK);
-    nreg_init(pc->PCH, N, pc->H, pc->PCH_Q, pc->PC_CTL.LOAD_PCH, pc->PC_CTL.EN_PCH, pc->CLK);
-
     // Clock enable gate
-    and_init(&pc->clk_gate, CLK, pc->PC_CTL.EN_CNT);
+    and_init(&pc->clk_gate, CLK, pc->EN_I_PC);
     // --- Incrementers ---
     // PCL + 1
     for (int i = 1; i < N; i++) {
@@ -89,43 +114,48 @@ void pc_init(
         pc->incH[i].value = SIG_0;
     }
     pc->incL[0] = pc->clk_gate.out.resolved;
-    full_adder_nbit_init(&pc->addL, PCL->Q, pc->incL, N);
+    full_adder_nbit_init(&pc->addL, pc->PCLSBusQ, pc->incL, N);
 
     // PCH + carry from PCL
     and_init(&pc->carry_gate, pc->addL.cout, &pc->clk_gate.out.resolved);
 
     pc->incH[0] = pc->carry_gate.out.resolved;
 
-    full_adder_nbit_init(&pc->addH, PCH->Q, pc->incH, N);
+    full_adder_nbit_init(&pc->addH, pc->PCHSBusQ, pc->incH, N);
 
     // Registers load incremented value
     for (int i = 0; i < N; i++) {
-        pc->L[i]->value = pc->addL.sum[i]->value;
-        pc->H[i]->value = pc->addH.sum[i]->value;
+        pc->L[i] = pc->addL.sum[i];
+        pc->H[i] = pc->addH.sum[i];
     }
+
+    nreg_add_load_port(pc->PCLS, 1, pc->PCLBusD, pc->LOAD_PCL_PCL);
+    nreg_add_enable_port(pc->PCLS, 0, pc->PCLSBusQ, dummy, one);
+    nreg_add_load_port(pc->PCL, 0, pc->L, one);
+    nreg_add_enable_port(pc->PCL, 2, pc->PCLBusQ, dummy, one);
+
+    nreg_add_load_port(pc->PCHS, 1, pc->PCHBusD, pc->LOAD_PCH_PCH);
+    nreg_add_enable_port(pc->PCHS, 0, pc->PCHSBusQ, dummy, one);
+    nreg_add_load_port(pc->PCH, 0, pc->H, one);
+    nreg_add_enable_port(pc->PCH, 2, pc->PCHBusQ, dummy, one);
 
 }
 
 void pc_eval(ProgramCounter *pc)
 {
     // Clock enable
-    and_eval(&pc->clk_gate);
-    and_eval(&pc->carry_gate);
+
     for (int i = 1; i < pc->N; i++) {
         pc->incL[i].value = SIG_0;
         pc->incH[i].value = SIG_0;
     }
-    pc->incL[0] = pc->clk_gate.out.resolved;
-    pc->incH[0] = pc->carry_gate.out.resolved;
-
+    
     // --- LOW BYTE ---
+    and_eval(&pc->clk_gate);
+    pc->incL[0] = pc->clk_gate.out.resolved;
     full_adder_nbit_eval(&pc->addL);
     // --- HIGH BYTE ---
+    and_eval(&pc->carry_gate);
+    pc->incH[0] = pc->carry_gate.out.resolved;
     full_adder_nbit_eval(&pc->addH);
-
-    // Registers load incremented value
-    for (int i = 0; i < pc->N; i++) {
-        pc->L[i]->value = pc->addL.sum[i]->value;
-        pc->H[i]->value = pc->addH.sum[i]->value;
-    }
 }

@@ -75,4 +75,18 @@ void node_resolve(Node *n) {
     }
 }
 
+void allocate_node(Node *n, int num_slots, int N) {
+    n = malloc(sizeof(Node) * N);
+    for (int i = 0; i < N; i++) {
+        n[i].slots = malloc(sizeof(Slot*) * num_slots);
+        n[i].n_slots = num_slots;
+        n[i].capacity = num_slots;
+        for (int j = 0; j < num_slots; j++) {
+            n[i].slots[j] = malloc(sizeof(Slot));
+            n[i].slots[j]->value = SIG_Z;
+        }
+        n[i].resolved.value = SIG_Z;
+    }
+}
+
 #endif // TRANSISTOR_H
