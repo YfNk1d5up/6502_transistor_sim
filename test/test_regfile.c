@@ -218,7 +218,7 @@ int main(void) {
     en.EN_I_PC->value = SIG_1;
     
     // initialization issue without first eval
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
     printf("Inititial state buses\n");
     dump(&rf, &alu);
 
@@ -227,16 +227,22 @@ int main(void) {
     en.LOAD_SB_AC->value = SIG_1;
 
     CLK.value = SIG_1;
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
 
     en.LOAD_SB_AC->value = SIG_0;
     bus_release(SB_IN, N);
-    CLK.value = SIG_1;
-    regfile_eval(&rf);
-    CLK.value = SIG_0;
 
+    CLK.value = SIG_1;
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
+    CLK.value = SIG_0;
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
 
     /* -------- Load X from SB -------- */
@@ -245,34 +251,45 @@ int main(void) {
     en.LOAD_SB_X->value = SIG_1;
 
     CLK.value = SIG_1;
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
-
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
 
     en.LOAD_SB_X->value = SIG_0;
     bus_release(SB_IN, N);
-    CLK.value = SIG_1;
-    regfile_eval(&rf);
-    CLK.value = SIG_0;
 
+    CLK.value = SIG_1;
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
+    CLK.value = SIG_0;
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
 
     /* -------- Enable AC → DB -------- */
     printf("Enable AC onto Data Bus\n");
     en.EN_AC_DB->value = SIG_1;
+
     CLK.value = SIG_1;
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
 
     printf("Enable X onto Stack Bus (keeping AC on DB)\n");
     en.EN_X_SB->value = SIG_1;
         
     CLK.value = SIG_1;
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
-
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
     en.EN_X_SB->value = SIG_0;
 
@@ -289,15 +306,11 @@ int main(void) {
     en.LOAD_ADH_PCH->value = SIG_1;
 
     CLK.value = SIG_1;
-    regfile_eval(&rf);
-    CLK.value = SIG_0;
-
+    regfile_eval(&rf, &alu);
     dump(&rf, &alu);
-
-    CLK.value = SIG_1;
-    regfile_eval(&rf);
     CLK.value = SIG_0;
-
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
 
     printf("Restart counter\n");
@@ -312,10 +325,12 @@ int main(void) {
     en.LOAD_ADH_PCH->value = SIG_0;
 
     CLK.value = SIG_1;
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
-
-    dump(&rf, &alu);   
+    regfile_eval(&rf, &alu);
+    
+    dump(&rf, &alu); 
 
     /* -------- Load SP then drive ADL -------- */
     printf("Load SP and drive SB\n");
@@ -323,25 +338,23 @@ int main(void) {
     en.LOAD_SB_SP->value = SIG_1;
 
     CLK.value = SIG_1;
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
-
+    regfile_eval(&rf, &alu);
+    
     dump(&rf, &alu);
 
+    printf("Load SB from SP\n");
     en.LOAD_SB_SP->value = SIG_0;
     bus_release(SB_IN, N);
-    
-    CLK.value = SIG_1;
-    regfile_eval(&rf);
-    CLK.value = SIG_0;
-
-    dump(&rf, &alu);
-
     en.EN_SP_SB->value = SIG_1;
     
     CLK.value = SIG_1;
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
+    regfile_eval(&rf, &alu);
     
     dump(&rf, &alu);
 
@@ -353,14 +366,10 @@ int main(void) {
     alu.core.op_add.value = SIG_1; 
 
     CLK.value = SIG_1;
-    regfile_eval(&rf);
-    alu_eval(&alu);
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
     dump(&rf, &alu);
     CLK.value = SIG_0;
-    regfile_eval(&rf);
-    alu_eval(&alu);
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
     
     dump(&rf, &alu);
     /* -------- Output Result from ALU to SB -------- */
@@ -372,16 +381,10 @@ int main(void) {
     //en.EN_ADD7_SB->value = SIG_1;
 
     CLK.value = SIG_1;
-
-    regfile_eval(&rf);
-    alu_eval(&alu);
-    regfile_eval(&rf);
-
+    regfile_eval(&rf, &alu);
+    dump(&rf, &alu);
     CLK.value = SIG_0;
-    
-    regfile_eval(&rf);
-    alu_eval(&alu);
-    regfile_eval(&rf);
+    regfile_eval(&rf, &alu);
     
     dump(&rf, &alu);
 

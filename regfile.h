@@ -2,6 +2,7 @@
 #include "gates.h"
 #include "register.h"
 #include "pc.h"
+#include "regalu.h"
 #include <stdlib.h>
 
 // --- 6502 Register File ---
@@ -347,12 +348,15 @@ void resolvenode_regeval(RegFile *rf, NBitRegister *r) {
 }
 
 // Evaluate the regfile
-void regfile_eval(RegFile *rf) {
+void regfile_eval(RegFile *rf, RegALU *alu) {
     
     // Evaluate all registers
 
     resolvenode_regeval(rf, &rf->regA);
     resolvenode_regeval(rf, &rf->regB);
+
+    alu_eval(alu);
+
     resolvenode_regeval(rf, &rf->regAH);
     resolvenode_regeval(rf, &rf->regAC);
     resolvenode_regeval(rf, &rf->regX);
