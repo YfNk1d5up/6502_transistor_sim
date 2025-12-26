@@ -2,6 +2,7 @@
 #define HELPERS_H
 
 #include "transistor.h"
+#include "register.h"
 
 const char* S(Signal s) {
     switch (s) {
@@ -15,7 +16,7 @@ const char* S(Signal s) {
 static void print_bus(const char *name, Node *bus, int N) {
     printf("%s: ", name);
     for (int i = 0; i < N; i++)
-        printf("%d ", bus[i].resolved.value);
+        printf("%s ", S(bus[i].resolved.value));
     printf("\n");
 }
 
@@ -28,14 +29,14 @@ void print_slot_ptr(const char *name, Slot *slot) {
 static void print_slots(const char *name, Slot *s, int N) {
     printf("%s: ", name);
     for (int i = 0; i < N; i++)
-        printf("%d ", s[i].value);
+        printf("%s ", S(s[i].value));
     printf("\n");
 }
 
 static void print_slots_ptr(const char *name, Slot **s, int N) {
     printf("%s: ", name);
     for (int i = 0; i < N; i++)
-        printf("%d ", s[i]->value);
+        printf("%s ", S(s[i]->value));
     printf("\n");
 }
 
@@ -46,11 +47,12 @@ static void print_bus_slots(const char *name, Node *bus, int N) {
         printf("  [%d] ", bit);
 
         for (int s = 0; s < bus[bit].n_slots; s++) {
-            printf("%d ", bus[bit].slots[s]->value);
+            printf("%s ", S(bus[bit].slots[s]->value));
         }
 
-        printf("-> %d\n", bus[bit].resolved.value);
+        printf("-> %s\n", S(bus[bit].resolved.value));
     }
 }
+
 
 #endif

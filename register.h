@@ -27,8 +27,8 @@ void dlatch_init(DLatch *l, Slot *D, Slot *EN) {
     l->D = D;
     l->EN = EN;
 
-    l->Q.value = SIG_0;
-    l->Q_not.value = SIG_1;
+    l->Q.value = SIG_Z;
+    l->Q_not.value = SIG_Z;
 
     not_init(&l->not_d, D);
 
@@ -212,10 +212,9 @@ void nreg_init(
     r->loadports = malloc(sizeof(RegLoadPort) * num_write_ports);
     r->enableports = malloc(sizeof(RegEnablePort) * num_read_ports);
 
-    // Initialize storage latches with dummy D/EN (patched later)
     for (int i = 0; i < N; i++) {
-        r->bits[i].Q.value     = SIG_0;
-        r->bits[i].Q_not.value = SIG_1;
+        r->bits[i].Q.value     = SIG_Z;
+        r->bits[i].Q_not.value = SIG_Z;
         dlatch_init(&r->bits[i], &r->internalBufferBus[i].resolved, r->CLK);
     }
 }

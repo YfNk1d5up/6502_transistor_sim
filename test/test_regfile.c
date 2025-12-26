@@ -1,12 +1,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../regfile.h"
+#include "../regalu.h"
 #include "../helpers.h"
 
-static void dump(RegFile *rf) {
+
+static void print_register_port(const char *name, NBitRegister *reg, int port, int N) {
+    printf("%s (Q):\n", name);
+
+    for (int i = 0; i < N; i++) {
+            printf("%s ", S(reg->enableports[port].Q[i].value));
+            //printf("bits %s \n", S(reg->bits[i].Q.value));
+    }
+    printf("\n");
+}
+
+static void print_tristate(const char *name, NBitRegister *reg, int port, int N) {
+    printf("%s (Q):\n", name);
+
+    for (int i = 0; i < N; i++) {
+            printf("%s", S(reg->enableports[port].Q[i].value));
+            print_bus("tsQ", &reg->enableports[port].tsQ[i].out, 1);
+    }
+    printf("\n");
+}
+
+
+static void dump(RegFile *rf, RegALU *alu) {
 
     /* ---- Register output drivers ---- */
     /*
+    print_slots("ALU Core A", alu->core.A,   rf->N);
+    print_slots("ALU Core B", alu->core.B,   rf->N);
+
     print_slots("AC_DB  ", rf->AC_DB,   rf->N);
     print_slots("AC_SB  ", rf->AC_SB,   rf->N);
 
@@ -50,9 +76,19 @@ static void bus_release(Slot *in, int N) {
 int main(void) {
     const int N = 8;
     Slot CLK = { .value = SIG_0 };
+    Slot **one = malloc(sizeof(Slot*) * N);
+    Slot **zero = malloc(sizeof(Slot*) * N);
+    for (int i = 0; i < N; i++) {
+        one[i] = malloc(sizeof(Slot));
+        one[i]->value = SIG_1;
+        zero[i] = malloc(sizeof(Slot));
+        zero[i]->value = SIG_0;
+    }
+    Slot *dummy = malloc(sizeof(Slot) * N);
 
     RegFile rf;
     RegFileEn en;
+    RegALU alu;
 
     /* -------- Allocate buses -------- */
     Node *DB  = malloc(sizeof(Node) * N);
@@ -61,8 +97,8 @@ int main(void) {
     Node *ADH = malloc(sizeof(Node) * N);
 
     allocate_node(DB,  4, N);
-    allocate_node(SB,  4, N);
-    allocate_node(ADL, 2, N);
+    allocate_node(SB,  5, N);
+    allocate_node(ADL, 3, N);
     allocate_node(ADH, 1, N);
 
     /* -------- Input bus drivers -------- */
@@ -86,6 +122,14 @@ int main(void) {
     /* -------- Allocate control signals -------- */
     #define ALLOC(x) x = malloc(sizeof(Slot))
 
+    ALLOC(en.one);
+    ALLOC(en.zero);
+
+    ALLOC(en.LOAD_0_ADD);
+    ALLOC(en.LOAD_ADL_ADD);
+    ALLOC(en.LOAD_DB_ADD);
+    ALLOC(en.LOAD_SB_ADD);
+    ALLOC(en.LOAD_notDB_ADD);
     ALLOC(en.LOAD_SB_AC);
     ALLOC(en.LOAD_SB_X);
     ALLOC(en.LOAD_SB_Y);
@@ -96,6 +140,9 @@ int main(void) {
     ALLOC(en.LOAD_ADH_PCH);
     ALLOC(en.LOAD_PCH_PCH);
 
+    ALLOC(en.EN_ADD_ADL);
+    ALLOC(en.EN_ADD06_SB);
+    ALLOC(en.EN_ADD7_SB);
     ALLOC(en.EN_AC_DB);
     ALLOC(en.EN_AC_SB);
     ALLOC(en.EN_X_SB);
@@ -111,10 +158,20 @@ int main(void) {
 
     /* Default all control lines low */
     #define CLR(x) x->value = SIG_0
+    CLR(en.LOAD_0_ADD);
+    CLR(en.LOAD_ADL_ADD);
+    CLR(en.LOAD_DB_ADD);
+    CLR(en.LOAD_SB_ADD);
+    CLR(en.LOAD_notDB_ADD);
+    CLR(en.EN_ADD06_SB);
+    CLR(en.EN_ADD7_SB);
     CLR(en.LOAD_SB_AC); CLR(en.LOAD_SB_X); CLR(en.LOAD_SB_Y);
     CLR(en.LOAD_SB_SP); CLR(en.LOAD_DB_P);
     CLR(en.LOAD_ADL_PCL); CLR(en.LOAD_PCL_PCL);
     CLR(en.LOAD_ADH_PCH); CLR(en.LOAD_PCH_PCH);
+    CLR(en.EN_ADD06_SB);
+    CLR(en.EN_ADD7_SB);
+    CLR(en.EN_ADD_ADL);
     CLR(en.EN_AC_DB); CLR(en.EN_AC_SB);
     CLR(en.EN_X_SB);  CLR(en.EN_Y_SB);
     CLR(en.EN_SP_SB); CLR(en.EN_SP_ADL);
@@ -123,8 +180,24 @@ int main(void) {
     CLR(en.EN_PCH_DB); CLR(en.EN_PCH_ADH);
     CLR(en.EN_I_PC);
 
+    en.one->value = SIG_1;
+
     /* -------- Init regfile -------- */
-    regfile_init(&rf, N, &CLK, DB, SB, ADL, ADH, &en);
+    regfile_init(&rf, N, &CLK, one, zero, dummy, DB, SB, ADL, ADH, &en);
+
+    alu_init(
+        &alu, 
+        N, 
+        &CLK, 
+        one, 
+        zero, 
+        dummy, 
+        &rf.regA, 
+        &rf.regB, 
+        &rf.regAH, 
+        en.one, 
+        en.zero
+    );
 
     /* -------- Test values -------- */
     int A[8]  = {1,0,1,0,1,0,1,0};
@@ -147,7 +220,7 @@ int main(void) {
     // initialization issue without first eval
     regfile_eval(&rf);
     printf("Inititial state buses\n");
-    dump(&rf);
+    dump(&rf, &alu);
 
     printf("Load AC from Stack Bus\n");
     bus_drive(SB_IN, A, N);
@@ -156,7 +229,7 @@ int main(void) {
     CLK.value = SIG_1;
     regfile_eval(&rf);
     CLK.value = SIG_0;
-    dump(&rf);
+    dump(&rf, &alu);
 
     en.LOAD_SB_AC->value = SIG_0;
     bus_release(SB_IN, N);
@@ -164,7 +237,7 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
 
     /* -------- Load X from SB -------- */
     printf("Load X from Stack Bus\n");
@@ -175,7 +248,7 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
 
     en.LOAD_SB_X->value = SIG_0;
     bus_release(SB_IN, N);
@@ -183,7 +256,7 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
 
     /* -------- Enable AC → DB -------- */
     printf("Enable AC onto Data Bus\n");
@@ -191,7 +264,7 @@ int main(void) {
     CLK.value = SIG_1;
     regfile_eval(&rf);
     CLK.value = SIG_0;
-    dump(&rf);
+    dump(&rf, &alu);
 
     printf("Enable X onto Stack Bus (keeping AC on DB)\n");
     en.EN_X_SB->value = SIG_1;
@@ -200,9 +273,8 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
     en.EN_X_SB->value = SIG_0;
-    en.EN_AC_DB->value = SIG_0;
 
     /* -------- jump counter -------- */
     printf("Loading to PLCS & PCHS to jump counter\n");
@@ -220,13 +292,13 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
 
     CLK.value = SIG_1;
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
 
     printf("Restart counter\n");
     bus_release(ADL_IN, N);
@@ -243,7 +315,7 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);    
+    dump(&rf, &alu);   
 
     /* -------- Load SP then drive ADL -------- */
     printf("Load SP and drive SB\n");
@@ -254,7 +326,7 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
 
     en.LOAD_SB_SP->value = SIG_0;
     bus_release(SB_IN, N);
@@ -263,7 +335,7 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
 
-    dump(&rf);
+    dump(&rf, &alu);
 
     en.EN_SP_SB->value = SIG_1;
     
@@ -271,7 +343,47 @@ int main(void) {
     regfile_eval(&rf);
     CLK.value = SIG_0;
     
-    dump(&rf);
+    dump(&rf, &alu);
+
+    /* -------- Load ALU B from DB and ALU A from SB -------- */
+    printf("Load ALU B from DB and ALU A from SB and operation = add\n");
+    en.LOAD_DB_ADD->value = SIG_1;
+    en.EN_SP_SB->value = SIG_1;
+    en.LOAD_SB_ADD->value = SIG_1;
+    alu.core.op_add.value = SIG_1; 
+
+    CLK.value = SIG_1;
+    regfile_eval(&rf);
+    alu_eval(&alu);
+    regfile_eval(&rf);
+    dump(&rf, &alu);
+    CLK.value = SIG_0;
+    regfile_eval(&rf);
+    alu_eval(&alu);
+    regfile_eval(&rf);
+    
+    dump(&rf, &alu);
+    /* -------- Output Result from ALU to SB -------- */
+    printf("Output Result [0,6] from ALU to SB\n");
+    en.LOAD_DB_ADD->value = SIG_0;
+    en.LOAD_SB_ADD->value = SIG_0;
+    en.EN_SP_SB->value = SIG_0;
+    en.EN_ADD06_SB->value = SIG_1;
+    //en.EN_ADD7_SB->value = SIG_1;
+
+    CLK.value = SIG_1;
+
+    regfile_eval(&rf);
+    alu_eval(&alu);
+    regfile_eval(&rf);
+
+    CLK.value = SIG_0;
+    
+    regfile_eval(&rf);
+    alu_eval(&alu);
+    regfile_eval(&rf);
+    
+    dump(&rf, &alu);
 
     return 0;
 }

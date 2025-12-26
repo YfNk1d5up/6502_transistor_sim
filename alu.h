@@ -177,7 +177,7 @@ void alu_nbit_eval(ALUNBit *alu) {
     // Evaluate ALU bits
     for (int i = 0; i < alu->N; i++) {
         alu_bit_eval(&alu->bits[i]);
-        alu->result[i] = &alu->bits[i].result;
+        //alu->result[i] = &alu->bits[i].result;
     }
 
     // --- Evaluate flags using permanent gates ---

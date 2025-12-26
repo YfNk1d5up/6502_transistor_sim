@@ -1,5 +1,4 @@
 #pragma once
-
 #include "fulladder.h"
 #include "register.h"
 #include "gates.h"
@@ -53,13 +52,15 @@ void pc_init(
     ProgramCounter *pc,
     int N,
     Slot *CLK,
-    Slot *one,
-    Slot *zero,
+    Slot **one,
+    Slot **zero,
     Slot *dummy,
     NBitRegister *PCLS,
     NBitRegister *PCHS,
     NBitRegister *PCL,
     NBitRegister *PCH,
+    Slot *one_ctl,
+    Slot *zero_ctl,
     Slot *LOAD_PCL_PCL,
     Slot *LOAD_PCH_PCH,
     Slot *EN_I_PC
@@ -131,14 +132,14 @@ void pc_init(
     }
 
     nreg_add_load_port(pc->PCLS, 1, pc->PCLBusD, pc->LOAD_PCL_PCL);
-    nreg_add_enable_port(pc->PCLS, 0, pc->PCLSBusQ, dummy, one);
-    nreg_add_load_port(pc->PCL, 0, pc->L, one);
-    nreg_add_enable_port(pc->PCL, 2, pc->PCLBusQ, dummy, one);
+    nreg_add_enable_port(pc->PCLS, 0, pc->PCLSBusQ, dummy, one_ctl);
+    nreg_add_load_port(pc->PCL, 0, pc->L, one_ctl);
+    nreg_add_enable_port(pc->PCL, 2, pc->PCLBusQ, dummy, one_ctl);
 
     nreg_add_load_port(pc->PCHS, 1, pc->PCHBusD, pc->LOAD_PCH_PCH);
-    nreg_add_enable_port(pc->PCHS, 0, pc->PCHSBusQ, dummy, one);
-    nreg_add_load_port(pc->PCH, 0, pc->H, one);
-    nreg_add_enable_port(pc->PCH, 2, pc->PCHBusQ, dummy, one);
+    nreg_add_enable_port(pc->PCHS, 0, pc->PCHSBusQ, dummy, one_ctl);
+    nreg_add_load_port(pc->PCH, 0, pc->H, one_ctl);
+    nreg_add_enable_port(pc->PCH, 2, pc->PCHBusQ, dummy, one_ctl);
 
 }
 

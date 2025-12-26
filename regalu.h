@@ -1,17 +1,16 @@
+#pragma once
 #include <stdlib.h>
-#include "transistor.h"
 #include "register.h"
 #include "alu.h"
 
 typedef struct {
     int N;
     Slot *CLK;
-    Slot **inputD;      // input bus (resolved)
-    Slot **outputQ;      // output bus
 
     // Registers
-    NBitRegister regA;
-    NBitRegister regB;
+    NBitRegister *regA;
+    NBitRegister *regB;
+    NBitRegister *regAH;
 
     // Storage
     Slot *A;
@@ -20,59 +19,50 @@ typedef struct {
     // Combinational core
     ALUNBit core;
 
-    // Tri-state
-    TriStateGate *tsOUT;
 } RegALU;
 
-typedef struct {
-    Slot *EN_A;
-    Slot *EN_B;
-    Slot *EN_OUT;
-} RegAluEn;
-
-void alu_init(RegALU *alu, int N, Slot *CLK, Slot **inputD, RegAluEn *en)
+void alu_init(
+    RegALU *alu, 
+    int N, 
+    Slot *CLK, 
+    Slot **one,
+    Slot **zero,
+    Slot *dummy,
+    NBitRegister *regA,
+    NBitRegister *regB,
+    NBitRegister *regAH,
+    Slot *one_ctl,
+    Slot *zero_ctl
+    // opcodes
+    )
 {
     alu->N = N;
     alu->CLK = CLK;
-    alu->inputD = inputD;
+    alu->regA = regA;
+    alu->regB = regB;
+    alu->regAH = regAH;
 
     alu->A   = malloc(sizeof(Slot) * N);
     alu->B   = malloc(sizeof(Slot) * N);
 
     for (int i = 0; i < N; i++) {
-        alu->A[i].value   = SIG_0;
-        alu->B[i].value   = SIG_0;
+        alu->A[i].value   = SIG_Z;
+        alu->B[i].value   = SIG_Z;
     }
 
-    // Registers
-    nreg_init(&alu->regA,   N, alu->inputD, alu->A,   en->EN_A);
-    nreg_init(&alu->regB,   N, alu->inputD, alu->B,   en->EN_B);
-
+    // Registers ports
+    nreg_add_enable_port(alu->regA, 0, alu->A, dummy, one_ctl);
+    nreg_add_enable_port(alu->regB, 0, alu->B, dummy, one_ctl);
+    
     // Core ALU uses register outputs
     alu_nbit_init(&alu->core, N, alu->A, alu->B);
 
-    // Tri-state output
-    alu->tsOUT  = malloc(sizeof(TriStateGate) * N);
-    alu->outputQ = malloc(sizeof(Slot*) * N);
-
-    for (int i = 0; i < N; i++) {
-        tristate_init(&alu->tsOUT[i], alu->core.result[i], en->EN_OUT);
-        alu->outputQ[i] = &alu->tsOUT[i].out.resolved;
-    }
+    nreg_add_load_port(alu->regAH, 0, alu->core.result, one_ctl);
     
 }
 
 void alu_eval(RegALU *alu)
 {
-    // Registers
-    nreg_eval(&alu->regA);
-    nreg_eval(&alu->regB);
-
     // Combinational
     alu_nbit_eval(&alu->core);
-    
-    // Output enable
-    for (int i = 0; i < alu->N; i++) {
-        tristate_eval(&alu->tsOUT[i]);
-    }
 }
