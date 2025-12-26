@@ -48,18 +48,29 @@ int main(void)
     LOAD_PCH_PCH->value = SIG_0;
     EN_I_PC->value = SIG_0;
 
-    Slot *one;
-    one = malloc(sizeof(Slot));
-    one->value = SIG_1;
+    Slot *one_ctl;
+    one_ctl = malloc(sizeof(Slot));
+    one_ctl->value = SIG_1;
 
-    Slot *zero;
-    zero = malloc(sizeof(Slot));
-    zero->value = SIG_0;
+    Slot *zero_ctl;
+    zero_ctl = malloc(sizeof(Slot));
+    zero_ctl->value = SIG_0;
 
     Slot *dummy;
     dummy = malloc(sizeof(Slot) * N);
     for (int i = 0; i < N; i++) {
         dummy[i].value = SIG_Z;
+    }
+
+    Slot **one;
+    one = malloc(sizeof(Slot*) * N);
+    Slot **zero;
+    zero = malloc(sizeof(Slot*) * N);
+    for (int i = 0; i < N; i++) {
+        one[i] = malloc(sizeof(Slot));
+        one[i]->value = SIG_1;
+        zero[i] = malloc(sizeof(Slot));
+        zero[i]->value = SIG_0;
     }
 
 
@@ -129,6 +140,8 @@ int main(void)
         &PCHS,
         &PCL, 
         &PCH,
+        one_ctl,
+        zero_ctl,
         LOAD_PCL_PCL,
         LOAD_PCH_PCH,
         EN_I_PC
@@ -210,7 +223,7 @@ int main(void)
     LOAD_PCL_PCL->value = SIG_1;
     LOAD_PCH_PCH->value = SIG_1;
 
-    for (int cycle = 0; cycle < pow(2, 16) ; cycle++) {// cycle < pow(2, 16) - 1
+    for (int cycle = 0; cycle < pow(2, 16); cycle++) {// cycle < pow(2, 16) - 1
         /* Rising edge */
         CLK.value = SIG_1;
 
