@@ -126,10 +126,8 @@ void pc_init(
     full_adder_nbit_init(&pc->addH, pc->PCHSBusQ, pc->incH, N);
 
     // Registers load incremented value
-    for (int i = 0; i < N; i++) {
-        pc->L[i] = pc->addL.sum[i];
-        pc->H[i] = pc->addH.sum[i];
-    }
+    pc->L = pc->addL.sum;
+    pc->H = pc->addH.sum;
 
     nreg_add_load_port(pc->PCLS, 1, pc->PCLBusD, pc->LOAD_PCL_PCL);
     nreg_add_enable_port(pc->PCLS, 0, pc->PCLSBusQ, dummy, one_ctl);

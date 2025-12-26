@@ -61,8 +61,6 @@ typedef struct {
     Slot *PCL_ADL;
     Slot *PCH_DB;
     Slot *PCH_ADH; 
-
-    ProgramCounter pc;
 } RegFile;
 
 typedef struct {
@@ -140,12 +138,6 @@ void regfile_init(
     rf->stackBus = stackBus;
     rf->addressLBus = addressLBus;
     rf->addressHBus = addressHBus;
-
-    // Constant control signals
-    en->one = malloc(sizeof(Slot));
-    en->one->value = SIG_1;
-    en->zero = malloc(sizeof(Slot));
-    en->zero->value = SIG_0;
 
     // Allocate ports data
     rf->AH06_SB = malloc(sizeof(Slot) * N);
@@ -263,28 +255,13 @@ void regfile_init(
     nreg_add_enable_port(&rf->regPCH, 1, rf->PCH_ADH, rf->dummy, en->EN_PCH_ADH);
     // third one to internal PC low BUS increment in PC implementation
 
-    pc_init(&rf->pc, 
-        N, 
-        CLK, 
-        rf->one,
-        rf->zero,
-        rf->dummy, 
-        &rf->regPCLS, 
-        &rf->regPCHS, 
-        &rf->regPCL, 
-        &rf->regPCH,
-        en->one, 
-        en->zero, 
-        en->LOAD_PCL_PCL,
-        en->LOAD_PCH_PCH,
-        en->EN_I_PC
-    );
+}
 
-
+void regfile_connect2buses (RegFile *rf) {
     //allocate_node(rf->dataBus, 4, N); // 4 registers
 
     // Connect output slots to dataBusQ Node (4 registers)
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < rf->N; i++) {
         node_add_slot(&rf->dataBus[i], &rf->AC_DB[i]);
         node_add_slot(&rf->dataBus[i], &rf->P_DB[i]);
         node_add_slot(&rf->dataBus[i], &rf->PCL_DB[i]);
@@ -294,8 +271,8 @@ void regfile_init(
     //allocate_node(rf->stackBus, 5, N);
     
     // Connect output slots to stackBusQ Node (5 registers)
-    for (int i = 0; i < N; i++) {
-        if (i == N-1) 
+    for (int i = 0; i < rf->N; i++) {
+        if (i == rf->N - 1) 
             node_add_slot(&rf->stackBus[i], &rf->AH7_SB[i]);
         else
             node_add_slot(&rf->stackBus[i], &rf->AH06_SB[i]);
@@ -308,7 +285,7 @@ void regfile_init(
     //allocate_node(rf->addressLBus, 3, N);
 
     // Connect output slots to addressLowBusQ Node (3 registers)
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < rf->N; i++) {
         node_add_slot(&rf->addressLBus[i], &rf->AH_ADL[i]);
         node_add_slot(&rf->addressLBus[i], &rf->SP_ADL[i]);
         node_add_slot(&rf->addressLBus[i], &rf->PCL_ADL[i]);
@@ -317,7 +294,7 @@ void regfile_init(
     //allocate_node(rf->addressHBus, 1, N);
 
     // Connect output slots to addressHighBusQ Node (1 register)
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < rf->N; i++) {
         node_add_slot(&rf->addressHBus[i], &rf->PCH_ADH[i]);
     }
 }
@@ -348,7 +325,7 @@ void resolvenode_regeval(RegFile *rf, NBitRegister *r) {
 }
 
 // Evaluate the regfile
-void regfile_eval(RegFile *rf, RegALU *alu) {
+void regfile_eval(RegFile *rf, ProgramCounter *pc, RegALU *alu) {
     
     // Evaluate all registers
 
@@ -366,7 +343,7 @@ void regfile_eval(RegFile *rf, RegALU *alu) {
     resolvenode_regeval(rf, &rf->regPCLS);
     resolvenode_regeval(rf, &rf->regPCHS);
 
-    pc_eval(&rf->pc);
+    pc_eval(pc);
 
     resolvenode_regeval(rf, &rf->regPCL);
     resolvenode_regeval(rf, &rf->regPCH);
