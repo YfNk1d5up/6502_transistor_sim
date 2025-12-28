@@ -139,6 +139,9 @@ typedef struct {
 
     // Clock
     Slot *CLK;
+    Slot prev_clk;
+    NOTGate not_clk_rising_edge;
+    ANDGate and_clk_rising_edge;
 
     // Ports
     int num_load_ports;
@@ -200,6 +203,9 @@ void nreg_init(
 ) {
     r->N = N;
     r->CLK = CLK;
+    r->prev_clk.value = SIG_0;
+    not_init(&r->not_clk_rising_edge, &r->prev_clk);
+    and_init(&r->and_clk_rising_edge, r->CLK, &r->not_clk_rising_edge.out.resolved); 
 
     r->num_load_ports = num_write_ports;
     r->num_enable_ports  = num_read_ports;
@@ -215,11 +221,14 @@ void nreg_init(
     for (int i = 0; i < N; i++) {
         r->bits[i].Q.value     = SIG_0;
         r->bits[i].Q_not.value = SIG_1;
-        dlatch_init(&r->bits[i], &r->internalBufferBus[i].resolved, r->CLK);
+        dlatch_init(&r->bits[i], &r->internalBufferBus[i].resolved, &r->and_clk_rising_edge.out.resolved);
     }
 }
 
 void nreg_eval(NBitRegister *r) {
+
+    not_eval(&r->not_clk_rising_edge);
+    and_eval(&r->and_clk_rising_edge);
     // Evaluate write enables
     for (int w = 0; w < r->num_load_ports; w++) {
         for (int i = 0; i < r->N; i++) {
@@ -243,4 +252,5 @@ void nreg_eval(NBitRegister *r) {
             p->Q_not[i] = p->tsQn[i].out.resolved;
         }
     }
+    r->prev_clk.value = r->CLK->value;
 }

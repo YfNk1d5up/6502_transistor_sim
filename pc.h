@@ -9,7 +9,12 @@
 
 typedef struct {
     int N;              // bits per register (8)
+
     Slot *CLK;
+    Slot prev_clk;
+    NOTGate not_clk_rising_edge;
+    ANDGate and_clk_rising_edge;
+
     Slot *LOAD_PCL_PCL;
     Slot *LOAD_PCH_PCH;
     Slot *EN_I_PC;
@@ -66,7 +71,12 @@ void pc_init(
     Slot *EN_I_PC
 ) {
     pc->N     = N;
+
     pc->CLK   = CLK;
+    pc->prev_clk.value = SIG_0;
+    not_init(&pc->not_clk_rising_edge, &pc->prev_clk);
+    and_init(&pc->and_clk_rising_edge, pc->CLK, &pc->not_clk_rising_edge.out.resolved); 
+
     pc->LOAD_PCL_PCL = LOAD_PCL_PCL;
     pc->LOAD_PCH_PCH = LOAD_PCH_PCH;
     pc->EN_I_PC = EN_I_PC;
@@ -108,7 +118,7 @@ void pc_init(
     }
 
     // Clock enable gate
-    and_init(&pc->clk_gate, CLK, pc->EN_I_PC);
+    and_init(&pc->clk_gate, &pc->and_clk_rising_edge.out.resolved, pc->EN_I_PC);
     // --- Incrementers ---
     // PCL + 1
     for (int i = 1; i < N; i++) {
@@ -150,6 +160,8 @@ void pc_eval(ProgramCounter *pc)
         pc->incH[i].value = SIG_0;
     }
     // --- LOW BYTE ---
+    not_eval(&pc->not_clk_rising_edge);
+    and_eval(&pc->and_clk_rising_edge); 
     and_eval(&pc->clk_gate);
     pc->incL[0] = pc->clk_gate.out.resolved;
     full_adder_nbit_eval(&pc->addL);
@@ -157,4 +169,5 @@ void pc_eval(ProgramCounter *pc)
     and_eval(&pc->carry_gate);
     pc->incH[0] = pc->carry_gate.out.resolved;
     full_adder_nbit_eval(&pc->addH);
+    pc->prev_clk.value = pc->CLK->value;
 }

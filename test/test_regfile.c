@@ -70,6 +70,25 @@ static void bus_release(Slot *in, int N) {
         in[i].value = SIG_Z;
 }
 
+void multi_eval (RegFile *rf, ProgramCounter *pc, RegALU *alu) {
+    printf("    CLOCK 0   \n");
+    rf->CLK->value = SIG_0;
+    for (int i=0; i < 10; i++)
+        regfile_eval(rf, pc, alu);    
+    dump(rf, pc, alu);
+    printf("    CLOCK 1   \n");
+    rf->CLK->value = SIG_1;
+    for (int i=0; i < 10; i++)
+        regfile_eval(rf, pc, alu);
+    dump(rf, pc, alu);
+    printf("    CLOCK 0   \n");
+    rf->CLK->value = SIG_0;
+    for (int i=0; i < 10; i++)
+        regfile_eval(rf, pc, alu);    
+    dump(rf, pc, alu);
+
+}
+
 /* ---------------- Test ---------------- */
 
 int main(void) {
@@ -239,79 +258,43 @@ int main(void) {
     en.EN_I_PC->value = SIG_1;
     
     // initialization issue without first eval
-    regfile_eval(&rf, &pc, &alu);
     printf("Inititial state buses\n");
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     printf("Load AC from Stack Bus\n");
     bus_drive(SB_IN, A, N);
     en.LOAD_SB_AC->value = SIG_1;
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     en.LOAD_SB_AC->value = SIG_0;
     bus_release(SB_IN, N);
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     /* -------- Load X from SB -------- */
     printf("Load X from Stack Bus\n");
     bus_drive(SB_IN, X, N);
     en.LOAD_SB_X->value = SIG_1;
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     en.LOAD_SB_X->value = SIG_0;
     bus_release(SB_IN, N);
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     /* -------- Enable AC → DB -------- */
     printf("Enable AC onto Data Bus\n");
     en.EN_AC_DB->value = SIG_1;
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     printf("Enable X onto Stack Bus (keeping AC on DB)\n");
     en.EN_X_SB->value = SIG_1;
         
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
+
     en.EN_X_SB->value = SIG_0;
 
     /* -------- jump counter -------- */
@@ -326,58 +309,34 @@ int main(void) {
     en.LOAD_ADL_PCL->value = SIG_1;
     en.LOAD_ADH_PCH->value = SIG_1;
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     printf("Restart counter\n");
     bus_release(ADL_IN, N);
     bus_release(ADH_IN, N);
+    en.LOAD_ADL_PCL->value = SIG_0;
+    en.LOAD_ADH_PCH->value = SIG_0;
     en.EN_PCL_ADL->value = SIG_1;
     en.EN_PCH_ADH->value = SIG_1;
     en.LOAD_PCL_PCL->value = SIG_1; 
     en.LOAD_PCH_PCH->value = SIG_1;
     en.EN_I_PC->value = SIG_1;
-    en.LOAD_ADL_PCL->value = SIG_0;
-    en.LOAD_ADH_PCH->value = SIG_0;
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu); 
+    multi_eval(&rf, &pc, &alu);
 
     /* -------- Load SP then drive ADL -------- */
     printf("Load SP and drive SB\n");
     bus_drive(SB_IN, SP, N);
     en.LOAD_SB_SP->value = SIG_1;
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     printf("Load SB from SP\n");
     en.LOAD_SB_SP->value = SIG_0;
     bus_release(SB_IN, N);
     en.EN_SP_SB->value = SIG_1;
     
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     /* -------- Load ALU B from DB and ALU A from SB -------- */
     printf("Load ALU B from DB and ALU A from SB and operation = add\n");
@@ -386,13 +345,8 @@ int main(void) {
     en.LOAD_SB_ADD->value = SIG_1;
     alu.core.op_add.value = SIG_1; 
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
+
     /* -------- Output Result from ALU to SB -------- */
     printf("Output Result [0,6] from ALU to SB\n");
     en.LOAD_DB_ADD->value = SIG_0;
@@ -401,13 +355,7 @@ int main(void) {
     en.EN_ADD06_SB->value = SIG_1;
     //en.EN_ADD7_SB->value = SIG_1;
 
-    CLK.value = SIG_1;
-    regfile_eval(&rf, &pc, &alu);
-    dump(&rf, &pc, &alu);
-    CLK.value = SIG_0;
-    regfile_eval(&rf, &pc, &alu);
-    
-    dump(&rf, &pc, &alu);
+    multi_eval(&rf, &pc, &alu);
 
     return 0;
 }
