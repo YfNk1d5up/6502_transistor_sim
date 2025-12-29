@@ -6,12 +6,13 @@
 #include "register.h"
 #include "helpers.h"
 #include "rcl.h"
+#include "clock.h"
 
 // ================= CPU =================
 
 typedef struct {
     int N;
-    Slot *CLK;
+    ClockGen ClkGen;
 
     Slot *dummy;
     Slot **one;
@@ -39,5 +40,5 @@ typedef struct {
 // ================= API =================
 
 void cpu_init(CPU *cpu, int N, Slot *CLK, Slot **one, Slot **zero, Slot *dummy);
-void multi_eval(RegFile *rf, ProgramCounter *pc, RegALU *alu);
+void multi_eval(CPU *cpu, Slot *CLK);
 

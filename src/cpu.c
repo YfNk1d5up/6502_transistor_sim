@@ -15,21 +15,24 @@ static void bus_release(Slot *in, int N) {
         in[i].value = SIG_Z;
 }
 
-void multi_eval (RegFile *rf, ProgramCounter *pc, RegALU *alu) {
+void multi_eval(CPU *cpu, Slot *CLK) {
     printf("    CLOCK 0   \n");
-    rf->CLK->value = SIG_0;
+    CLK->value = SIG_0;
+    clock_eval(&cpu->ClkGen);
     for (int i=0; i < 10; i++)
-        regfile_eval(rf, pc, alu);    
+        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu);    
     //dump(rf, pc, alu);
     printf("    CLOCK 1   \n");
-    rf->CLK->value = SIG_1;
+    CLK->value = SIG_1;
+    clock_eval(&cpu->ClkGen);
     for (int i=0; i < 10; i++)
-        regfile_eval(rf, pc, alu);
+        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu); 
     //dump(rf, pc, alu);
     printf("    CLOCK 0   \n");
-    rf->CLK->value = SIG_0;
+    CLK->value = SIG_0;
+    clock_eval(&cpu->ClkGen);
     for (int i=0; i < 10; i++)
-        regfile_eval(rf, pc, alu);    
+        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu);    
     //dump(rf, pc, alu);
 
 }
@@ -45,7 +48,8 @@ void cpu_init(
     Slot *dummy
     )
 {
-    cpu->CLK = CLK;
+
+    clock_init(&cpu->ClkGen, CLK);
     cpu->N = N;
     cpu->one = one;
     cpu->zero = zero;
@@ -68,7 +72,7 @@ void cpu_init(
     regfile_init(
         &cpu->rf, 
         cpu->N, 
-        cpu->CLK, 
+        cpu->ClkGen.phi2, 
         cpu->one, 
         cpu->zero, 
         cpu->dummy, 
@@ -81,7 +85,7 @@ void cpu_init(
     pc_init(
         &cpu->pc, 
         cpu->N, 
-        cpu->CLK, 
+        cpu->ClkGen.phi2, 
         cpu->one,
         cpu->zero,
         cpu->dummy, 
@@ -98,11 +102,11 @@ void cpu_init(
 
     alu_init(
         &cpu->alu, 
-        N, 
-        &CLK, 
-        one, 
-        zero, 
-        dummy, 
+        cpu->N, 
+        cpu->ClkGen.phi2, 
+        cpu->one, 
+        cpu->zero, 
+        cpu->dummy, 
         &cpu->rf.regA, 
         &cpu->rf.regB, 
         &cpu->rf.regAH, 
