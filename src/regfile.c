@@ -1,119 +1,4 @@
-#pragma once
-#include "gates.h"
-#include "register.h"
-#include "pc.h"
-#include "regalu.h"
-#include <stdlib.h>
-
-// --- 6502 Register File ---
-
-typedef struct {
-    int N; 
-    Slot *CLK;      // shared clock
-    Slot **one;
-    Slot **zero;
-    Slot *dummy; // dummy slot for unused ports
-
-    Slot **dataBusD;   // Data bus
-    Node *dataBus;
-
-    NOTGate *notG; // Data bus Inverted
-    TriStateGate *tsNot;
-    Slot **notDataBusD;
-    Node *notDataBus;
-
-
-    Slot **stackBusD;  // Stack Pointer bus
-    Node *stackBus;
-
-    Slot **addressLBusD; // Memory Address Low bus
-    Node *addressLBus;
-
-    Slot **addressHBusD; // Memory Address High bus
-    Node *addressHBus;
-
-    // Registers
-    NBitRegister regA; // ALU A
-    NBitRegister regB; // ALU B
-    NBitRegister regAH; // ALU Adder Hold Register
-    NBitRegister regAC;   // Accumulator
-    NBitRegister regX;   // Index X
-    NBitRegister regY;   // Index Y
-    NBitRegister regSP;  // Stack Pointer
-    NBitRegister regP;   // Processor Status
-    NBitRegister regPCLS; // Program Counter Select low 
-    NBitRegister regPCHS; // Program Counter Select high
-    NBitRegister regPCL; // Program Counter low
-    NBitRegister regPCH; // Program Counter high
-
-    // Registers Outputs
-    Slot *AH06_SB; // bits 0-6
-    Slot *AH7_SB; //bit 7
-    Slot *AH_ADL;
-    Slot *AC_DB;
-    Slot *AC_SB;  
-    Slot *X_SB;  
-    Slot *Y_SB;  
-    Slot *SP_SB; 
-    Slot *SP_ADL;
-    Slot *P_DB;  
-    Slot *PCL_DB;
-    Slot *PCL_ADL;
-    Slot *PCH_DB;
-    Slot *PCH_ADH; 
-} RegFile;
-
-typedef struct {
-    Slot *LOAD_SB_ADD; // ALU A
-    Slot *LOAD_0_ADD;
-
-    Slot *LOAD_DB_ADD; // ALU B
-    Slot *LOAD_notDB_ADD;
-    Slot *LOAD_ADL_ADD;
-
-    Slot *LOAD_SB_AC;
-
-    Slot *LOAD_SB_X;
-
-    Slot *LOAD_SB_Y;
-
-    Slot *LOAD_SB_SP;
-
-    Slot *LOAD_DB_P;
-
-    Slot *LOAD_ADL_PCL;
-    Slot *LOAD_PCL_PCL;
-
-    Slot *LOAD_ADH_PCH;
-    Slot *LOAD_PCH_PCH;
-
-    Slot *EN_ADD_ADL; // ALU AHR
-    Slot *EN_ADD06_SB; // bits 0-6 of AHR
-    Slot *EN_ADD7_SB; // bit 7
-    
-    Slot *EN_AC_DB;
-    Slot *EN_AC_SB;
-
-    Slot *EN_X_SB;
-
-    Slot *EN_Y_SB;
-
-    Slot *EN_SP_SB;
-    Slot *EN_SP_ADL;
-
-    Slot *EN_P_DB;
-
-    Slot *EN_PCL_DB;
-    Slot *EN_PCL_ADL;
-
-    Slot *EN_PCH_DB;
-    Slot *EN_PCH_ADH;
-
-    Slot *EN_I_PC;
-
-    Slot *one;
-    Slot *zero;
-} RegFileEn;
+#include "regfile.h"
 
 // Initialize the regfile
 void regfile_init(
@@ -127,7 +12,7 @@ void regfile_init(
     Node *stackBus, 
     Node *addressLBus, 
     Node *addressHBus, 
-    RegFileEn *en) 
+    RCL rcl) 
 {
     rf->N = N;
     rf->CLK = CLK;
@@ -147,8 +32,8 @@ void regfile_init(
     rf->AC_SB   = malloc(sizeof(Slot) * N);
     rf->X_SB   = malloc(sizeof(Slot) * N);
     rf->Y_SB   = malloc(sizeof(Slot) * N);
-    rf->SP_SB  = malloc(sizeof(Slot) * N);
-    rf->SP_ADL = malloc(sizeof(Slot) * N);
+    rf->S_SB  = malloc(sizeof(Slot) * N);
+    rf->S_ADL = malloc(sizeof(Slot) * N);
     rf->P_DB   = malloc(sizeof(Slot) * N);
     rf->PCL_DB = malloc(sizeof(Slot) * N);
     rf->PCL_ADL = malloc(sizeof(Slot) * N);
@@ -164,7 +49,7 @@ void regfile_init(
         rf->AC_SB[i].value  = SIG_Z;
         rf->X_SB[i].value   = SIG_Z;
         rf->Y_SB[i].value   = SIG_Z;
-        rf->SP_SB[i].value  = SIG_Z;
+        rf->S_SB[i].value  = SIG_Z;
         rf->P_DB[i].value   = SIG_Z;
         rf->PCL_DB[i].value = SIG_Z;
         rf->PCL_ADL[i].value = SIG_Z;
@@ -187,7 +72,7 @@ void regfile_init(
         rf->dataBusD[i] = &rf->dataBus[i].resolved;
         // databus inverter
         not_init(&rf->notG[i], rf->dataBusD[i]);
-        //tristate_init(&rf->tsNot[i], &rf->notG[i].out.resolved, en->one);
+        //tristate_init(&rf->tsNot[i], &rf->notG[i].out.resolved, rcl.one);
         //node_add_slot(&rf->notDataBus[i], &rf->notG[i].out.resolved);
         rf->notDataBusD[i] = &rf->notG[i].out.resolved;
         rf->stackBusD[i] = &rf->stackBus[i].resolved;
@@ -197,62 +82,68 @@ void regfile_init(
     // Initialize registers
 
     nreg_init(&rf->regA, N, 2, 1, rf->CLK);
-    nreg_add_load_port(&rf->regA, 0, rf->zero, en->LOAD_0_ADD);
-    nreg_add_load_port(&rf->regA, 1, rf->stackBusD, en->LOAD_SB_ADD);
+    nreg_add_load_port(&rf->regA, 0, rf->zero, rcl.LOAD_0_ADD);
+    nreg_add_load_port(&rf->regA, 1, rf->stackBusD, rcl.LOAD_SB_ADD);
     // enable port in ALU
 
     nreg_init(&rf->regB, N, 3, 1, rf->CLK);
-    nreg_add_load_port(&rf->regB, 0, rf->dataBusD, en->LOAD_DB_ADD);
-    nreg_add_load_port(&rf->regB, 1, rf->notDataBusD, en->LOAD_notDB_ADD);
-    nreg_add_load_port(&rf->regB, 2, rf->addressLBusD, en->LOAD_ADL_ADD);
+    nreg_add_load_port(&rf->regB, 0, rf->dataBusD, rcl.LOAD_DB_ADD);
+    nreg_add_load_port(&rf->regB, 1, rf->notDataBusD, rcl.LOAD_notDB_ADD);
+    nreg_add_load_port(&rf->regB, 2, rf->addressLBusD, rcl.LOAD_ADL_ADD);
     // enable port in ALU
 
     nreg_init(&rf->regAH, N, 1, 3, rf->CLK);
     // load port in ALU
-    nreg_add_enable_port(&rf->regAH, 0, rf->AH_ADL, rf->dummy, en->EN_ADD_ADL);
-    nreg_add_enable_port(&rf->regAH, 1, rf->AH06_SB, rf->dummy, en->EN_ADD06_SB);
-    nreg_add_enable_port(&rf->regAH, 2, rf->AH7_SB, rf->dummy, en->EN_ADD7_SB);
+    nreg_add_enable_port(&rf->regAH, 0, rf->AH_ADL, rf->dummy, rcl.EN_ADD_ADL);
+    nreg_add_enable_port(&rf->regAH, 1, rf->AH06_SB, rf->dummy, rcl.EN_ADD06_SB);
+    nreg_add_enable_port(&rf->regAH, 2, rf->AH7_SB, rf->dummy, rcl.EN_ADD7_SB);
 
     nreg_init(&rf->regAC, N, 1, 2, rf->CLK);
-    nreg_add_load_port(&rf->regAC, 0, rf->stackBusD, en->LOAD_SB_AC);
-    nreg_add_enable_port(&rf->regAC, 0, rf->AC_DB, rf->dummy, en->EN_AC_DB);
-    nreg_add_enable_port(&rf->regAC, 1, rf->AC_SB, rf->dummy, en->EN_AC_SB);
+    nreg_add_load_port(&rf->regAC, 0, rf->stackBusD, rcl.LOAD_SB_AC);
+    nreg_add_enable_port(&rf->regAC, 0, rf->AC_DB, rf->dummy, rcl.EN_AC_DB);
+    nreg_add_enable_port(&rf->regAC, 1, rf->AC_SB, rf->dummy, rcl.EN_AC_SB);
 
     nreg_init(&rf->regX, N, 1, 1, rf->CLK);
-    nreg_add_load_port(&rf->regX, 0, rf->stackBusD, en->LOAD_SB_X);
-    nreg_add_enable_port(&rf->regX, 0, rf->X_SB, rf->dummy, en->EN_X_SB);
+    nreg_add_load_port(&rf->regX, 0, rf->stackBusD, rcl.LOAD_SB_X);
+    nreg_add_enable_port(&rf->regX, 0, rf->X_SB, rf->dummy, rcl.EN_X_SB);
 
     nreg_init(&rf->regY, N, 1, 1, rf->CLK);
-    nreg_add_load_port(&rf->regY, 0, rf->stackBusD, en->LOAD_SB_Y);
-    nreg_add_enable_port(&rf->regY, 0, rf->Y_SB, rf->dummy, en->EN_Y_SB);
+    nreg_add_load_port(&rf->regY, 0, rf->stackBusD, rcl.LOAD_SB_Y);
+    nreg_add_enable_port(&rf->regY, 0, rf->Y_SB, rf->dummy, rcl.EN_Y_SB);
 
     nreg_init(&rf->regSP, N, 1, 2, rf->CLK);
-    nreg_add_load_port(&rf->regSP, 0, rf->stackBusD, en->LOAD_SB_SP);
-    nreg_add_enable_port(&rf->regSP, 0, rf->SP_SB, rf->dummy, en->EN_SP_SB);
-    nreg_add_enable_port(&rf->regSP, 1, rf->SP_ADL, rf->dummy, en->EN_SP_ADL);
+    nreg_add_load_port(&rf->regSP, 0, rf->stackBusD, rcl.LOAD_SB_S);
+    nreg_add_enable_port(&rf->regSP, 0, rf->S_SB, rf->dummy, rcl.EN_S_SB);
+    nreg_add_enable_port(&rf->regSP, 1, rf->S_ADL, rf->dummy, rcl.EN_S_ADL);
 
-    nreg_init(&rf->regP, N, 1, 1, rf->CLK);
-    nreg_add_load_port(&rf->regP, 0, rf->dataBusD, en->LOAD_DB_P);
-    nreg_add_enable_port(&rf->regP, 0, rf->P_DB, rf->dummy, en->EN_P_DB);
+    nreg_init(&rf->regP, N, 6, 1, rf->CLK); // 13 load ports
+    nreg_add_load_port(&rf->regP, 0, rf->dataBusD, rcl.LOAD_DB0_P_C);
+    nreg_add_load_port(&rf->regP, 1, rf->dataBusD, rcl.LOAD_DB1_P_Z);
+    nreg_add_load_port(&rf->regP, 2, rf->dataBusD, rcl.LOAD_DB2_P_I);
+    nreg_add_load_port(&rf->regP, 3, rf->dataBusD, rcl.LOAD_DB3_P_D);
+    nreg_add_load_port(&rf->regP, 4, rf->dataBusD, rcl.LOAD_DB6_P_V);
+    nreg_add_load_port(&rf->regP, 5, rf->dataBusD, rcl.LOAD_DB7_P_N);
+    // missing IR5, DBZ, ACR, AVR, I    
+    nreg_add_enable_port(&rf->regP, 0, rf->P_DB, rf->dummy, rcl.EN_P_DB);
 
     nreg_init(&rf->regPCLS, N, 2, 1, rf->CLK);
-    nreg_add_load_port(&rf->regPCLS, 0, rf->addressLBusD, en->LOAD_ADL_PCL);
+    nreg_add_load_port(&rf->regPCLS, 0, rf->addressLBusD, rcl.LOAD_ADL_PCL);
     // second one loads from internal PC low bus in PC implementation
  
     nreg_init(&rf->regPCHS, N, 2, 1, rf->CLK);
-    nreg_add_load_port(&rf->regPCHS, 0, rf->addressHBusD, en->LOAD_ADH_PCH);
+    nreg_add_load_port(&rf->regPCHS, 0, rf->addressHBusD, rcl.LOAD_ADH_PCH);
     // second one loads from internal PC high bus in PC implementation
 
     nreg_init(&rf->regPCL, N, 1, 3, rf->CLK);
     // load from internal PC logic in PC implementation
-    nreg_add_enable_port(&rf->regPCL, 0, rf->PCL_DB, rf->dummy, en->EN_PCL_DB);
-    nreg_add_enable_port(&rf->regPCL, 1, rf->PCL_ADL, rf->dummy, en->EN_PCL_ADL);
+    nreg_add_enable_port(&rf->regPCL, 0, rf->PCL_DB, rf->dummy, rcl.EN_PCL_DB);
+    nreg_add_enable_port(&rf->regPCL, 1, rf->PCL_ADL, rf->dummy, rcl.EN_PCL_ADL);
     // third one to internal PC low BUS increment in PC implementation
 
     nreg_init(&rf->regPCH, N, 1, 3, rf->CLK);
     // load from internal PC logic in PC implementation
-    nreg_add_enable_port(&rf->regPCH, 0, rf->PCH_DB, rf->dummy, en->EN_PCH_DB);
-    nreg_add_enable_port(&rf->regPCH, 1, rf->PCH_ADH, rf->dummy, en->EN_PCH_ADH);
+    nreg_add_enable_port(&rf->regPCH, 0, rf->PCH_DB, rf->dummy, rcl.EN_PCH_DB);
+    nreg_add_enable_port(&rf->regPCH, 1, rf->PCH_ADH, rf->dummy, rcl.EN_PCH_ADH);
     // third one to internal PC low BUS increment in PC implementation
 
 }
@@ -279,7 +170,7 @@ void regfile_connect2buses (RegFile *rf) {
         node_add_slot(&rf->stackBus[i], &rf->AC_SB[i]);
         node_add_slot(&rf->stackBus[i], &rf->X_SB[i]);
         node_add_slot(&rf->stackBus[i], &rf->Y_SB[i]);
-        node_add_slot(&rf->stackBus[i], &rf->SP_SB[i]);
+        node_add_slot(&rf->stackBus[i], &rf->S_SB[i]);
     }
 
     //allocate_node(rf->addressLBus, 3, N);
@@ -287,7 +178,7 @@ void regfile_connect2buses (RegFile *rf) {
     // Connect output slots to addressLowBusQ Node (3 registers)
     for (int i = 0; i < rf->N; i++) {
         node_add_slot(&rf->addressLBus[i], &rf->AH_ADL[i]);
-        node_add_slot(&rf->addressLBus[i], &rf->SP_ADL[i]);
+        node_add_slot(&rf->addressLBus[i], &rf->S_ADL[i]);
         node_add_slot(&rf->addressLBus[i], &rf->PCL_ADL[i]);
     }
 

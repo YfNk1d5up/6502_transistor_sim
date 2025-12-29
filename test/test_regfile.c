@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../regfile.h"
-#include "../regalu.h"
-#include "../helpers.h"
+#include "regfile.h"
+#include "regalu.h"
+#include "helpers.h"
+#include "rcl.h"
 
 
 static void print_register_port(const char *name, NBitRegister *reg, int port, int N) {
@@ -105,7 +106,8 @@ int main(void) {
     Slot *dummy = malloc(sizeof(Slot) * N);
 
     RegFile rf;
-    RegFileEn en;
+    RCL en;
+    rcl_init(&en);
     ProgramCounter pc;
     RegALU alu;
 
@@ -141,68 +143,16 @@ int main(void) {
     /* -------- Allocate control signals -------- */
     #define ALLOC(x) x = malloc(sizeof(Slot))
 
-    ALLOC(en.one);
-    ALLOC(en.zero);
+    Slot *one_ctl;
+    Slot *zero_ctl;
+    ALLOC(one_ctl);
+    one_ctl->value = SIG_1; 
+    ALLOC(zero_ctl);
+    zero_ctl->value = SIG_0;
 
-    ALLOC(en.LOAD_0_ADD);
-    ALLOC(en.LOAD_ADL_ADD);
-    ALLOC(en.LOAD_DB_ADD);
-    ALLOC(en.LOAD_SB_ADD);
-    ALLOC(en.LOAD_notDB_ADD);
-    ALLOC(en.LOAD_SB_AC);
-    ALLOC(en.LOAD_SB_X);
-    ALLOC(en.LOAD_SB_Y);
-    ALLOC(en.LOAD_SB_SP);
-    ALLOC(en.LOAD_DB_P);
-    ALLOC(en.LOAD_ADL_PCL);
-    ALLOC(en.LOAD_PCL_PCL);
-    ALLOC(en.LOAD_ADH_PCH);
-    ALLOC(en.LOAD_PCH_PCH);
-
-    ALLOC(en.EN_ADD_ADL);
-    ALLOC(en.EN_ADD06_SB);
-    ALLOC(en.EN_ADD7_SB);
-    ALLOC(en.EN_AC_DB);
-    ALLOC(en.EN_AC_SB);
-    ALLOC(en.EN_X_SB);
-    ALLOC(en.EN_Y_SB);
-    ALLOC(en.EN_SP_SB);
-    ALLOC(en.EN_SP_ADL);
-    ALLOC(en.EN_P_DB);
-    ALLOC(en.EN_PCL_DB);
-    ALLOC(en.EN_PCL_ADL);
-    ALLOC(en.EN_PCH_DB);
-    ALLOC(en.EN_PCH_ADH);
-    ALLOC(en.EN_I_PC);
-
-    /* Default all control lines low */
-    #define CLR(x) x->value = SIG_0
-    CLR(en.LOAD_0_ADD);
-    CLR(en.LOAD_ADL_ADD);
-    CLR(en.LOAD_DB_ADD);
-    CLR(en.LOAD_SB_ADD);
-    CLR(en.LOAD_notDB_ADD);
-    CLR(en.EN_ADD06_SB);
-    CLR(en.EN_ADD7_SB);
-    CLR(en.LOAD_SB_AC); CLR(en.LOAD_SB_X); CLR(en.LOAD_SB_Y);
-    CLR(en.LOAD_SB_SP); CLR(en.LOAD_DB_P);
-    CLR(en.LOAD_ADL_PCL); CLR(en.LOAD_PCL_PCL);
-    CLR(en.LOAD_ADH_PCH); CLR(en.LOAD_PCH_PCH);
-    CLR(en.EN_ADD06_SB);
-    CLR(en.EN_ADD7_SB);
-    CLR(en.EN_ADD_ADL);
-    CLR(en.EN_AC_DB); CLR(en.EN_AC_SB);
-    CLR(en.EN_X_SB);  CLR(en.EN_Y_SB);
-    CLR(en.EN_SP_SB); CLR(en.EN_SP_ADL);
-    CLR(en.EN_P_DB);
-    CLR(en.EN_PCL_DB); CLR(en.EN_PCL_ADL);
-    CLR(en.EN_PCH_DB); CLR(en.EN_PCH_ADH);
-    CLR(en.EN_I_PC);
-
-    en.one->value = SIG_1;
 
     /* -------- Init regfile -------- */
-    regfile_init(&rf, N, &CLK, one, zero, dummy, DB, SB, ADL, ADH, &en);
+    regfile_init(&rf, N, &CLK, one, zero, dummy, DB, SB, ADL, ADH, en);
     
     pc_init(&pc, 
         N, 
@@ -214,11 +164,9 @@ int main(void) {
         &rf.regPCHS, 
         &rf.regPCL, 
         &rf.regPCH,
-        en.one, 
-        en.zero, 
-        en.LOAD_PCL_PCL,
-        en.LOAD_PCH_PCH,
-        en.EN_I_PC
+        one_ctl, 
+        zero_ctl, 
+        en
     );
     
     regfile_connect2buses(&rf);
@@ -233,8 +181,8 @@ int main(void) {
         &rf.regA, 
         &rf.regB, 
         &rf.regAH, 
-        en.one, 
-        en.zero
+        one_ctl, 
+        zero_ctl
     );
 
     
@@ -327,21 +275,21 @@ int main(void) {
     /* -------- Load SP then drive ADL -------- */
     printf("Load SP and drive SB\n");
     bus_drive(SB_IN, SP, N);
-    en.LOAD_SB_SP->value = SIG_1;
+    en.LOAD_SB_S->value = SIG_1;
 
     multi_eval(&rf, &pc, &alu);
 
     printf("Load SB from SP\n");
-    en.LOAD_SB_SP->value = SIG_0;
+    en.LOAD_SB_S->value = SIG_0;
     bus_release(SB_IN, N);
-    en.EN_SP_SB->value = SIG_1;
+    en.EN_S_SB->value = SIG_1;
     
     multi_eval(&rf, &pc, &alu);
 
     /* -------- Load ALU B from DB and ALU A from SB -------- */
     printf("Load ALU B from DB and ALU A from SB and operation = add\n");
     en.LOAD_DB_ADD->value = SIG_1;
-    en.EN_SP_SB->value = SIG_1;
+    en.EN_S_SB->value = SIG_1;
     en.LOAD_SB_ADD->value = SIG_1;
     alu.core.op_add.value = SIG_1; 
 
@@ -351,7 +299,7 @@ int main(void) {
     printf("Output Result [0,6] from ALU to SB\n");
     en.LOAD_DB_ADD->value = SIG_0;
     en.LOAD_SB_ADD->value = SIG_0;
-    en.EN_SP_SB->value = SIG_0;
+    en.EN_S_SB->value = SIG_0;
     en.EN_ADD06_SB->value = SIG_1;
     //en.EN_ADD7_SB->value = SIG_1;
 

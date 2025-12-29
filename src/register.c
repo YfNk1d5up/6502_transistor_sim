@@ -1,27 +1,7 @@
-#pragma once
-#include "gates.h"
-#include "helpers.h"
+#include "register.h"
+#include <stdlib.h>
 
 // -------- D LATCH --------
-
-typedef struct {
-    Slot *D;
-    Slot *EN;
-
-    Slot D_not;
-
-    Slot S;
-    Slot R;
-
-    Slot Q;
-    Slot Q_not;
-
-    NOTGate not_d;
-    ANDGate and_s;
-    ANDGate and_r;
-    NORGate nor_q;
-    NORGate nor_qn;
-} DLatch;
 
 void dlatch_init(DLatch *l, Slot *D, Slot *EN) {
     l->D = D;
@@ -74,90 +54,13 @@ void dlatch_eval(DLatch *l) {
     }
 }
 
-// --- DFlipFlop ---
-/*
-typedef struct {
-    Slot *D;
-    Slot *CLK;
-
-    Slot *Q;
-    Slot *Q_not;
-
-    DLatch dlatch;
-
-    NOTGate not_q;
-    NOTGate not_edge;
-    ANDGate and_edge;
-} DFlipFlop;
-
-void dff_init(DFlipFlop *ff, Slot *D, Slot *CLK) {
-    ff->D = D;
-    ff->CLK = CLK;
-    ff->q.value = SIG_0;
-    ff->q_not.value = SIG_1;
-    not_init(&ff->not_q, &ff->q);
-    not_init(&ff->not_edge, &ff->CLK);
-    and_init(&ff->and_edge, &ff->CLK, &ff->not_edge.out.resolved);
-    dlatch_init(&ff->dlatch, D, &ff->and_edge.out.resolved)
-}
-
-void dff1_eval(DFlipFlop1Bit *ff) {
-    not_eval(&ff->not_edge);
-    and_eval(&ff->and_edge);
-    dlatch_eval(&ff->dlatch);
-    ff->q.value = &ff->dlatch->q.out.resolved;
-    not_eval(&ff->not_q);
-    ff->q_not = &ff->not_q.out.resolved;
-}
-
-// --- in simulation DLatch is used against DFlipFlop as
-//     CLK and not CLK will always be false
-*/
-
-// --- N-bit Register ---
-
-typedef struct {
-    Slot **D;      // input bus [N]
-    Slot *LOAD;    // load signal
-    TriStateGate *tsD;
-} RegLoadPort;
-
-typedef struct {
-    Slot *Q;       // output bus [N]
-    Slot *Q_not;   // optional
-    Slot *EN;      // enable
-    TriStateGate *tsQ;
-    TriStateGate *tsQn;
-} RegEnablePort;
-
-typedef struct {
-    int N;
-
-    // Storage
-    DLatch *bits;
-    Node *internalBufferBus;
-
-    // Clock
-    Slot *CLK;
-    Slot prev_clk;
-    NOTGate not_clk_rising_edge;
-    ANDGate and_clk_rising_edge;
-
-    // Ports
-    int num_load_ports;
-    int num_enable_ports;
-
-    RegLoadPort *loadports;
-    RegEnablePort  *enableports;
-} NBitRegister;
-
 void nreg_add_load_port(
     NBitRegister *r,
-    int wp,
+    int lp,
     Slot **D,
     Slot *LOAD
 ) {
-    RegLoadPort *p = &r->loadports[wp];
+    RegLoadPort *p = &r->loadports[lp];
     p->D = malloc(sizeof(Slot*) * r->N);
     p->LOAD = LOAD;
 
@@ -172,12 +75,12 @@ void nreg_add_load_port(
 
 void nreg_add_enable_port(
     NBitRegister *r,
-    int rp,
+    int ep,
     Slot *Q,
     Slot *Q_not,
     Slot *EN
 ) {
-    RegEnablePort *p = &r->enableports[rp];
+    RegEnablePort *p = &r->enableports[ep];
     p->Q = Q;
     p->Q_not = Q_not;
     p->EN = EN;
@@ -197,8 +100,8 @@ void nreg_add_enable_port(
 void nreg_init(
     NBitRegister *r,
     int N,
-    int num_write_ports,
-    int num_read_ports,
+    int num_load_ports,
+    int num_enable_ports,
     Slot *CLK
 ) {
     r->N = N;
@@ -207,16 +110,16 @@ void nreg_init(
     not_init(&r->not_clk_rising_edge, &r->prev_clk);
     and_init(&r->and_clk_rising_edge, r->CLK, &r->not_clk_rising_edge.out.resolved); 
 
-    r->num_load_ports = num_write_ports;
-    r->num_enable_ports  = num_read_ports;
+    r->num_load_ports = num_load_ports;
+    r->num_enable_ports  = num_enable_ports;
 
     r->bits = malloc(sizeof(DLatch) * N);
 
     r->internalBufferBus  = malloc(sizeof(Node) * N);
     allocate_node(r->internalBufferBus,  r->num_load_ports, N);
 
-    r->loadports = malloc(sizeof(RegLoadPort) * num_write_ports);
-    r->enableports = malloc(sizeof(RegEnablePort) * num_read_ports);
+    r->loadports = malloc(sizeof(RegLoadPort) * num_load_ports);
+    r->enableports = malloc(sizeof(RegEnablePort) * num_enable_ports);
 
     for (int i = 0; i < N; i++) {
         r->bits[i].Q.value     = SIG_0;

@@ -1,57 +1,7 @@
-#pragma once
-#include "fulladder.h"
-#include "register.h"
-#include "gates.h"
-#include "helpers.h"
+#include "pc.h"
 #include <stdlib.h>
 
 // --- Program Counter ---
-
-typedef struct {
-    int N;              // bits per register (8)
-
-    Slot *CLK;
-    Slot prev_clk;
-    NOTGate not_clk_rising_edge;
-    ANDGate and_clk_rising_edge;
-
-    Slot *LOAD_PCL_PCL;
-    Slot *LOAD_PCH_PCH;
-    Slot *EN_I_PC;
-
-    Slot **PCLBusD; // Internal Program Counter Low bus
-    Slot **PCHBusD; // Internal Program Counter High bus
-    Slot *PCLSBusQ; // Internal Program Counter Select Low to increment logic
-    Slot *PCHSBusQ; // Internal Program Counter Select High to increment logic 
-    Slot *PCLBusQ; 
-    Slot *PCHBusQ; 
-
-    // External registers (from regfile)
-    NBitRegister *PCLS;
-    NBitRegister *PCHS;
-    NBitRegister *PCL;
-    NBitRegister *PCH;
-
-    // Clock gating
-    ANDGate clk_gate;
-    ANDGate carry_gate;
-
-    // Increment logic
-    FullAdderNBit addL;     // PCL + 1
-    FullAdderNBit addH;     // PCH + carry
-
-    // Internal buses for incremented values
-    Slot **L;
-    Slot **H;
-
-    // Increment buses
-    Slot *incL;
-    Slot *incH;
-
-    Slot *PCL_Q;
-    Slot *PCH_Q;
-
-} ProgramCounter;
 
 void pc_init(
     ProgramCounter *pc,
@@ -66,9 +16,7 @@ void pc_init(
     NBitRegister *PCH,
     Slot *one_ctl,
     Slot *zero_ctl,
-    Slot *LOAD_PCL_PCL,
-    Slot *LOAD_PCH_PCH,
-    Slot *EN_I_PC
+    RCL rcl
 ) {
     pc->N     = N;
 
@@ -77,9 +25,9 @@ void pc_init(
     not_init(&pc->not_clk_rising_edge, &pc->prev_clk);
     and_init(&pc->and_clk_rising_edge, pc->CLK, &pc->not_clk_rising_edge.out.resolved); 
 
-    pc->LOAD_PCL_PCL = LOAD_PCL_PCL;
-    pc->LOAD_PCH_PCH = LOAD_PCH_PCH;
-    pc->EN_I_PC = EN_I_PC;
+    pc->LOAD_PCL_PCL = rcl.LOAD_PCL_PCL;
+    pc->LOAD_PCH_PCH = rcl.LOAD_PCH_PCH;
+    pc->EN_I_PC = rcl.EN_I_PC;
 
     pc->PCLS = PCLS;
     pc->PCHS = PCHS;

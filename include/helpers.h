@@ -1,8 +1,14 @@
-#ifndef HELPERS_H
-#define HELPERS_H
+#pragma once
 
 #include "transistor.h"
 #include "register.h"
+#include "regfile.h"
+#include "pc.h"
+#include "regalu.h"
+#include <stdio.h>
+
+#define ALLOC_SLOT(x) x = malloc(sizeof(Slot))
+#define CLR_SLOT(x) x->value = SIG_0
 
 const char* S(Signal s) {
     switch (s) {
@@ -54,5 +60,13 @@ static void print_bus_slots(const char *name, Node *bus, int N) {
     }
 }
 
+static void dump_buses(RegFile *rf) {
 
-#endif
+    /* ---- Resolved buses ---- */
+    print_bus("DB ",  rf->dataBus,     rf->N);
+    print_bus("SB ",  rf->stackBus,    rf->N);
+    print_bus("ADL",  rf->addressLBus, rf->N);
+    print_bus("ADH",  rf->addressHBus, rf->N);
+
+    printf("------------------------------------------------\n");
+}

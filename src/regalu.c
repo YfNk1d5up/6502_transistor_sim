@@ -1,25 +1,6 @@
-#pragma once
 #include <stdlib.h>
-#include "register.h"
-#include "alu.h"
+#include "regalu.h"
 
-typedef struct {
-    int N;
-    Slot *CLK;
-
-    // Registers
-    NBitRegister *regA;
-    NBitRegister *regB;
-    NBitRegister *regAH;
-
-    // Storage
-    Slot *A;
-    Slot *B;
-
-    // Combinational core
-    ALUNBit core;
-
-} RegALU;
 
 void alu_init(
     RegALU *alu, 
