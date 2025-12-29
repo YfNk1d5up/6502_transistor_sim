@@ -1,10 +1,13 @@
 #pragma once
 #include "transistor.h"
+#include "decoderom.h"
+#include <stdint.h>
 
+#define RCL_BITS_COUNT 62
 // ================= Random Control Logic =================
 
 typedef struct {
-    Slot ctlSlots[62];
+    Slot ctlSlots[RCL_BITS_COUNT];
 
     // Input Data Latch
     Slot *EN_DL_DB;
@@ -105,3 +108,10 @@ typedef struct {
 } RCL;
 
 void rcl_init(RCL *rcl);
+
+void rcl_apply(RCL *rcl, uint64_t word);
+
+void rcl_eval(
+    RCL *rcl,
+    uint16_t key
+);

@@ -7,12 +7,13 @@
 #include "helpers.h"
 #include "rcl.h"
 #include "clock.h"
+#include "timing.h"
 
 // ================= CPU =================
 
 typedef struct {
     int N;
-    ClockGen ClkGen;
+    ClockGen clkGen;
 
     Slot *dummy;
     Slot **one;
@@ -27,13 +28,16 @@ typedef struct {
     RegALU alu;
     ProgramCounter pc;
 
-    RCL rcl;
+    RCL rcl; // Random Control Logic
+    TGL tgl; // Timing Generation Logic
 
-    NBitRegister ABL;
-    NBitRegister ABH;
-    NBitRegister IR;
-    NBitRegister PS;
-    NBitRegister DOR;
+    DecodeRom *decRom; 
+
+    NBitRegister ABL; // Address Bus Low Register
+    NBitRegister ABH; // Address Bus High Register
+    NBitRegister PD; // Predecode Register
+    NBitRegister IR; // Instruction Register
+    NBitRegister DOR; // Data Output Register
 
 } CPU;
 

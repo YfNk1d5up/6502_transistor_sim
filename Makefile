@@ -6,12 +6,15 @@ SRC = src/transistor.c \
       src/gates.c \
       src/register.c \
       src/fulladder.c \
+      src/decoderom.c \
       src/rcl.c \
       src/alu.c \
       src/regalu.c \
       src/pc.c \
       src/regfile.c \
-      test/test_regfile.c
+      src/clock.c \
+      src/timing.c \
+      src/cpu.c
 
 # Object directory
 OBJDIR = .obj
@@ -19,7 +22,7 @@ OBJDIR = .obj
 # Convert src/foo.c -> .obj/src/foo.o
 OBJ = $(SRC:%.c=$(OBJDIR)/%.o)
 
-BIN = test/bin/test_regfile_bin
+BIN = test/bin/test_cpu
 
 all: $(BIN)
 

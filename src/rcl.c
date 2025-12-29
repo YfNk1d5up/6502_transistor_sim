@@ -3,7 +3,7 @@
 
 void rcl_init(RCL *rcl)
 {
-    for (int i = 0; i < 62; i++) {
+    for (int i = 0; i < RCL_BITS_COUNT; i++) {
         rcl->ctlSlots[i].value = SIG_0;
     }
     int i = 0;
@@ -112,5 +112,32 @@ void rcl_init(RCL *rcl)
     rcl->LOAD_DB7_P_N   = &rcl->ctlSlots[i++];
 
     // Safety check
-    assert(i == 62);
+    assert(i == RCL_BITS_COUNT);
+}
+
+void rcl_apply(RCL *rcl, uint64_t word)
+{
+    for (int i = 0; i < RCL_BITS_COUNT; i++) {
+        rcl->ctlSlots[i].value =
+            (word & (1ULL << i)) ? SIG_1 : SIG_0;
+    }
+}
+
+
+void rcl_eval(
+    RCL *rcl,
+    uint16_t key
+)
+{
+    // Default: everything off
+    for (int i = 0; i < RCL_BITS_COUNT; i++)
+        rcl->ctlSlots[i].value = SIG_0;
+
+    // Lookup
+    for (size_t i = 0; i < decodeRom.count; i++) {
+        if (decodeRom.entries[i].key == key) {
+            rcl_apply(rcl, decodeRom.entries[i].value);
+            return;
+        }
+    }
 }
