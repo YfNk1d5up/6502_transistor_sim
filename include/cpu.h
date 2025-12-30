@@ -39,6 +39,11 @@ typedef struct {
     NBitRegister IR; // Instruction Register
     NBitRegister DOR; // Data Output Register
 
+    // TEST
+    Slot **IR_IN;
+    Slot *IR_OUT;
+    Slot *TGL_OUT;
+
 } CPU;
 
 // ================= API =================

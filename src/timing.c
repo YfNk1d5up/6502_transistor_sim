@@ -3,15 +3,6 @@
 // =========== Timing Generation Logic ===========
 
 void timing_init(TGL *tgl, Slot *CLK) {
-    dlatch_init(&tgl->t0,  tgl->notT6, CLK);
-    dlatch_init(&tgl->t1,  tgl->notT0, CLK);
-    dlatch_init(&tgl->t1x, tgl->SYNC, CLK);
-    dlatch_init(&tgl->t2,  tgl->notT1X, CLK);
-    dlatch_init(&tgl->t3,  tgl->notT2, CLK);
-    dlatch_init(&tgl->t4,  tgl->notT3, CLK);
-    dlatch_init(&tgl->t5,  tgl->notT4, CLK);
-    dlatch_init(&tgl->t6,  tgl->notT5, CLK);
-
     tgl->t0.Q.value = SIG_1;
     tgl->t1.Q.value = SIG_1;
     tgl->t1x.Q.value= SIG_1;
@@ -29,6 +20,15 @@ void timing_init(TGL *tgl, Slot *CLK) {
     tgl->notT4 = &tgl->t4.Q;
     tgl->notT5 = &tgl->t5.Q;
     tgl->notT6 = &tgl->t6.Q;
+
+    dlatch_init(&tgl->t0,  tgl->notT6, CLK);
+    dlatch_init(&tgl->t1,  tgl->notT0, CLK);
+    dlatch_init(&tgl->t1x, tgl->SYNC, CLK);
+    dlatch_init(&tgl->t2,  tgl->notT1X, CLK);
+    dlatch_init(&tgl->t3,  tgl->notT2, CLK);
+    dlatch_init(&tgl->t4,  tgl->notT3, CLK);
+    dlatch_init(&tgl->t5,  tgl->notT4, CLK);
+    dlatch_init(&tgl->t6,  tgl->notT5, CLK);
 
     tgl->out[0] = tgl->notT0;
     tgl->out[1] = tgl->notT1X;

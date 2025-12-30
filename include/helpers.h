@@ -70,3 +70,19 @@ static void dump_buses(RegFile *rf) {
 
     printf("------------------------------------------------\n");
 }
+
+static void hex_to_slots_ptr(uint64_t hex, Slot **slots, int N)
+{
+    for (int i = 0; i < N; i++) {
+        if (slots[i]) {
+            slots[i]->value = (hex & (1ULL << i)) ? SIG_1 : SIG_0;
+        }
+    }
+}
+
+static void hex_to_slots(uint64_t hex, Slot *slots, int N)
+{
+    for (int i = 0; i < N; i++) {
+            slots[i].value = (hex & (1ULL << i)) ? SIG_1 : SIG_0;
+    }
+}

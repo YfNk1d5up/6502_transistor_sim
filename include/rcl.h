@@ -111,7 +111,10 @@ void rcl_init(RCL *rcl);
 
 void rcl_apply(RCL *rcl, uint64_t word);
 
+uint16_t build_key(Slot *ir, Slot *timing);
+
 void rcl_eval(
     RCL *rcl,
-    uint16_t key
+    Slot *ir,
+    Slot *timing
 );

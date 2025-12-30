@@ -90,10 +90,13 @@ void cpu_init(
     );
 
     // bypass predecode for now
-    Slot **IR_IN  = malloc(sizeof(Slot*) * N);
-    Slot *IR_OUT  = malloc(sizeof(Slot) * N);
-    nreg_add_load_port(&cpu->IR, 0, IR_IN, one[0]);  
-    nreg_add_enable_port(&cpu->IR, 0, IR_OUT, cpu->dummy, one[0]);
+    cpu->IR_IN  = malloc(sizeof(Slot*) * N);
+    for (int i = 0; i < N; i++)
+        cpu->IR_IN[i] = malloc(sizeof(Slot));
+    cpu->IR_OUT  = malloc(sizeof(Slot) * N);
+    cpu->TGL_OUT  = malloc(sizeof(Slot) * N);
+    nreg_add_load_port(&cpu->IR, 0, cpu->IR_IN, one[0]);  
+    nreg_add_enable_port(&cpu->IR, 0, cpu->IR_OUT, cpu->dummy, one[0]);
 
     cpu->decRom = &decodeRom;
 }
@@ -108,26 +111,26 @@ static void bus_release(Slot *in, int N) {
         in[i].value = SIG_Z;
 }
 
+void simple_eval(CPU *cpu) {
+    clock_eval(&cpu->clkGen);
+    for (int i=0; i < 10; i++) {
+        nreg_eval(&cpu->IR);
+        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu);   
+    } 
+    dump_buses(&cpu->rf);
+    //print_slots_ptr("TGL", cpu->tgl.out, 7);
+}
+
 void multi_eval(CPU *cpu, Slot *CLK) {
     CLK->value = SIG_0;
     printf("    CLOCK 0   \n");
-    clock_eval(&cpu->clkGen);
-    for (int i=0; i < 10; i++)
-        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu);    
-    dump_buses(&cpu->rf);
+    simple_eval(cpu);
     printf("    CLOCK 1   \n");
     CLK->value = SIG_1;
-    clock_eval(&cpu->clkGen);
-    for (int i=0; i < 10; i++)
-        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu); 
-    dump_buses(&cpu->rf);
+    simple_eval(cpu);
     printf("    CLOCK 0   \n");
     CLK->value = SIG_0;
-    clock_eval(&cpu->clkGen);
-    for (int i=0; i < 10; i++)
-        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu);    
-    dump_buses(&cpu->rf);
-
+    simple_eval(cpu);
 }
 
 int main() {
@@ -154,11 +157,25 @@ int main() {
         dummy
     );
 
+    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
+    hex_to_slots(0x80, cpu.TGL_OUT, N);
+
     printf("Inititial state buses\n");
+
     multi_eval(&cpu, &CLK);
-    uint16_t key = 0xF080;
-    rcl_eval(&cpu.rcl, key);
+  
+    //timing_eval(&cpu.tgl); not working now, need precharge and two clocks
+    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
+    
+    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
+    hex_to_slots(0x40, cpu.TGL_OUT, N);
+
     printf("After micro code 0xF080\n");
+    multi_eval(&cpu, &CLK);
+
+    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
+
+    printf("After micro code 0xF40\n");
     multi_eval(&cpu, &CLK);
 
 

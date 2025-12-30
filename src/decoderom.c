@@ -12,6 +12,15 @@ static Microcode microcode[] = {
             RCL_BIT(RCL_EN_PCH_ADH) |
             RCL_BIT(RCL_EN_I_PC) 
     },
+    {
+        .key = (0xF0 << 8) | (0x40), // test opcode on T1X
+        .value =
+            RCL_BIT(RCL_LOAD_PCL_PCL) |
+            RCL_BIT(RCL_EN_PCL_ADL) |
+            RCL_BIT(RCL_LOAD_PCH_PCH) |
+            //RCL_BIT(RCL_EN_PCH_ADH) |
+            RCL_BIT(RCL_EN_I_PC) 
+    },
 };
 
 DecodeRom decodeRom = {
