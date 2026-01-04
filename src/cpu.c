@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "cpu.h"
+#include "sram.h"
 
 /* ---------------- CPU ---------------- */
 
@@ -26,12 +27,24 @@ void cpu_init(
     cpu->addressLBus = malloc(sizeof(Node) * N);
     cpu->addressHBus = malloc(sizeof(Node) * N);
 
+    cpu->outAddressBusL = malloc(sizeof(Slot) * N);
+    cpu->outAddressBusH = malloc(sizeof(Slot) * N);
+    cpu->outDataBus = malloc(sizeof(Slot) * N);
+
+    // Clear storage
+    for (int i = 0; i < N; i++) {
+        cpu->outAddressBusL[i].value  = SIG_Z;
+        cpu->outAddressBusH[i].value  = SIG_Z;
+        cpu->outDataBus[i].value  = SIG_Z;        
+    }
+
     allocate_node(cpu->dataBus,  1, N);
     allocate_node(cpu->stackBus,  1, N);
     allocate_node(cpu->addressLBus, 1, N);
     allocate_node(cpu->addressHBus, 1, N);
 
     rcl_init(&cpu->rcl);
+    cpu->RnotW = cpu->rcl.RnotW;
 
     /* -------- Init regfile -------- */
     regfile_init(
@@ -79,6 +92,61 @@ void cpu_init(
         cpu->zero[0]
     );
 
+    nreg_init(
+        &cpu->ABL, 
+        cpu->N,
+        1,
+        1,
+        cpu->clkGen.phi1
+    );
+    nreg_add_load_port(&cpu->ABL, 0, cpu->rf.addressLBusD, cpu->rcl.LOAD_ADL_ABL);  
+    nreg_add_enable_port(&cpu->ABL, 0, cpu->outAddressBusL, cpu->dummy, cpu->one[0]);
+    
+    nreg_init(
+        &cpu->ABH, 
+        cpu->N,
+        1,
+        1,
+        cpu->clkGen.phi1
+    );
+    nreg_add_load_port(&cpu->ABH, 0, cpu->rf.addressHBusD, cpu->rcl.LOAD_ADH_ABH);  
+    nreg_add_enable_port(&cpu->ABH, 0, cpu->outAddressBusH, cpu->dummy, cpu->one[0]);
+
+    cpu->outAddressBus = malloc(sizeof(Slot*) * 2*cpu->N);
+    for (int i = 0; i < cpu->N; i++) {
+        cpu->outAddressBus[i] = &cpu->outAddressBusL[i];
+        cpu->outAddressBus[cpu->N + i] = &cpu->outAddressBusH[i];
+    }
+
+    nreg_init(
+        &cpu->DOR, 
+        cpu->N,
+        1,
+        1,
+        cpu->clkGen.phi1
+    );
+    nreg_add_load_port(&cpu->DOR, 0, cpu->rf.dataBusD, cpu->one[0]);  
+    nreg_add_enable_port(&cpu->DOR, 0, cpu->outDataBus, cpu->dummy, cpu->one[0]);
+
+    cpu->enOutBuffers_not = malloc(sizeof(NOTGate) * cpu->N);
+    cpu->enOutBuffers_and = malloc(sizeof(ANDGate) * cpu->N);
+    cpu->extDataBusTristate = malloc(sizeof(TriStateGate) * cpu->N);
+    cpu->extDataBus = malloc(sizeof(Slot*) * N);
+    for (int i = 0; i < cpu->N; i++) {
+        not_init(&cpu->enOutBuffers_not[i], cpu->RnotW);
+        and_init(
+            &cpu->enOutBuffers_and[i], 
+            cpu->clkGen.phi2, 
+            &cpu->enOutBuffers_not[i].out.resolved
+        );
+        tristate_init(
+            &cpu->extDataBusTristate[i], 
+            &cpu->outDataBus[i], 
+            &cpu->enOutBuffers_and[i].out.resolved
+        );
+        cpu->extDataBus[i] = &cpu->extDataBusTristate[i].out.resolved;
+    }
+
     timing_init(&cpu->tgl, cpu->clkGen.phi1); // bypass predecode for now
 
     nreg_init(
@@ -111,11 +179,21 @@ static void bus_release(Slot *in, int N) {
         in[i].value = SIG_Z;
 }
 
+void out_eval(CPU *cpu) {
+    for (int i=0; i < cpu->N; i++) {
+        not_eval(&cpu->enOutBuffers_not[i]);
+        and_eval(&cpu->enOutBuffers_and[i]);
+        tristate_eval(&cpu->extDataBusTristate[i]);
+    }
+}
+
 void simple_eval(CPU *cpu) {
     clock_eval(&cpu->clkGen);
     for (int i=0; i < 10; i++) {
         nreg_eval(&cpu->IR);
-        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu);   
+        regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu); 
+        nreg_eval(&cpu->DOR);
+        out_eval(cpu);
     } 
     dump_buses(&cpu->rf);
     //print_slots_ptr("TGL", cpu->tgl.out, 7);
@@ -155,6 +233,20 @@ int main() {
         one,
         zero,
         dummy
+    );
+
+    SRAM ram;
+    sram_init(
+        &ram, 
+        N,
+        &CLK, 
+        dummy,
+        one,
+        zero,
+        16,
+        cpu.RnotW,
+        cpu.extDataBus,
+        cpu.outAddressBus
     );
 
     hex_to_slots_ptr(0xF0, cpu.IR_IN, N);

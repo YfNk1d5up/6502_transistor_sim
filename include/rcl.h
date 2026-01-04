@@ -3,7 +3,7 @@
 #include "decoderom.h"
 #include <stdint.h>
 
-#define RCL_BITS_COUNT 62
+#define RCL_BITS_COUNT 63
 // ================= Random Control Logic =================
 
 typedef struct {
@@ -105,6 +105,8 @@ typedef struct {
     Slot *LOAD_I_P_V;
 
     Slot *LOAD_DB7_P_N;
+
+    Slot *RnotW;
 } RCL;
 
 void rcl_init(RCL *rcl);

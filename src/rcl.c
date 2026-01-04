@@ -111,6 +111,9 @@ void rcl_init(RCL *rcl)
     // Negative
     rcl->LOAD_DB7_P_N   = &rcl->ctlSlots[i++];
 
+    // R and not Write dataBus
+    rcl->RnotW          = &rcl->ctlSlots[i++];
+
     // Safety check
     assert(i == RCL_BITS_COUNT);
 }

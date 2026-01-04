@@ -24,6 +24,12 @@ typedef struct {
     Node *addressLBus;
     Node *addressHBus;
 
+    Slot *outDataBus;
+    Slot **extDataBus;
+    Slot *outAddressBusL;
+    Slot *outAddressBusH;
+    Slot **outAddressBus;
+
     RegFile rf;
     RegALU alu;
     ProgramCounter pc;
@@ -38,7 +44,11 @@ typedef struct {
     NBitRegister PD; // Predecode Register
     NBitRegister IR; // Instruction Register
     NBitRegister DOR; // Data Output Register
+    NOTGate *enOutBuffers_not;
+    ANDGate *enOutBuffers_and;
+    TriStateGate *extDataBusTristate;
 
+    Slot *RnotW;
     // TEST
     Slot **IR_IN;
     Slot *IR_OUT;
