@@ -98,7 +98,9 @@ enum {
 
     RCL_LOAD_DB7_P_N,
 
-    RCL_BITS_COUNT = 62
+    RCL_RnotW,
+
+    RCL_BITS_COUNT = 63
 };
 
 

@@ -14,7 +14,7 @@ SRC = src/transistor.c \
       src/regfile.c \
       src/clock.c \
       src/timing.c \
-      src/sram.c \
+      src/fakeram.c \
       src/cpu.c
 
 # Object directory

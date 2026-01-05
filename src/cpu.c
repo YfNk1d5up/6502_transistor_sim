@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 #include "cpu.h"
-#include "sram.h"
+#include "fakeram.h"
 
 /* ---------------- CPU ---------------- */
 
@@ -22,26 +22,32 @@ void cpu_init(
     cpu->dummy = dummy;
 
     /* -------- Allocate buses -------- */
-    cpu->dataBus = malloc(sizeof(Node) * N);
-    cpu->stackBus = malloc(sizeof(Node) * N);
-    cpu->addressLBus = malloc(sizeof(Node) * N);
-    cpu->addressHBus = malloc(sizeof(Node) * N);
+    cpu->dataBus = malloc(sizeof(Node) * cpu->N);
+    cpu->stackBus = malloc(sizeof(Node) * cpu->N);
+    cpu->addressLBus = malloc(sizeof(Node) * cpu->N);
+    cpu->addressHBus = malloc(sizeof(Node) * cpu->N);
+    cpu->extDataBus = malloc(sizeof(Node) * cpu->N);
 
-    cpu->outAddressBusL = malloc(sizeof(Slot) * N);
-    cpu->outAddressBusH = malloc(sizeof(Slot) * N);
-    cpu->outDataBus = malloc(sizeof(Slot) * N);
+    cpu->outAddressBusL = malloc(sizeof(Slot) * cpu->N);
+    cpu->outAddressBusH = malloc(sizeof(Slot) * cpu->N);
+    cpu->outDataBus = malloc(sizeof(Slot) * cpu->N);
 
     // Clear storage
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < cpu->N; i++) {
         cpu->outAddressBusL[i].value  = SIG_Z;
         cpu->outAddressBusH[i].value  = SIG_Z;
         cpu->outDataBus[i].value  = SIG_Z;        
     }
 
-    allocate_node(cpu->dataBus,  1, N);
-    allocate_node(cpu->stackBus,  1, N);
-    allocate_node(cpu->addressLBus, 1, N);
-    allocate_node(cpu->addressHBus, 1, N);
+    allocate_node(cpu->dataBus,  1, cpu->N);
+    allocate_node(cpu->stackBus,  1, cpu->N);
+    allocate_node(cpu->addressLBus, 1, cpu->N);
+    allocate_node(cpu->addressHBus, 1, cpu->N);
+
+    allocate_node(cpu->extDataBus, 1, cpu->N);
+    cpu->extDataBusD = malloc(sizeof(Slot*) * cpu->N);
+    for (int i = 0; i < N; i++)
+        cpu->extDataBusD[i] = &cpu->extDataBus[i].resolved;
 
     rcl_init(&cpu->rcl);
     cpu->RnotW = cpu->rcl.RnotW;
@@ -75,6 +81,9 @@ void cpu_init(
         cpu->zero[0], 
         cpu->rcl
     );
+
+    // Load port for data latch
+    nreg_add_load_port(&cpu->rf.regDL, 0, cpu->extDataBusD, cpu->one[0]);  
     
     regfile_connect2buses(&cpu->rf);
 
@@ -131,7 +140,6 @@ void cpu_init(
     cpu->enOutBuffers_not = malloc(sizeof(NOTGate) * cpu->N);
     cpu->enOutBuffers_and = malloc(sizeof(ANDGate) * cpu->N);
     cpu->extDataBusTristate = malloc(sizeof(TriStateGate) * cpu->N);
-    cpu->extDataBus = malloc(sizeof(Slot*) * N);
     for (int i = 0; i < cpu->N; i++) {
         not_init(&cpu->enOutBuffers_not[i], cpu->RnotW);
         and_init(
@@ -144,7 +152,7 @@ void cpu_init(
             &cpu->outDataBus[i], 
             &cpu->enOutBuffers_and[i].out.resolved
         );
-        cpu->extDataBus[i] = &cpu->extDataBusTristate[i].out.resolved;
+        node_add_slot(&cpu->extDataBus[i], &cpu->extDataBusTristate[i].out.resolved);
     }
 
     timing_init(&cpu->tgl, cpu->clkGen.phi1); // bypass predecode for now
@@ -184,6 +192,7 @@ void out_eval(CPU *cpu) {
         not_eval(&cpu->enOutBuffers_not[i]);
         and_eval(&cpu->enOutBuffers_and[i]);
         tristate_eval(&cpu->extDataBusTristate[i]);
+        node_resolve(&cpu->extDataBus[i]);
     }
 }
 
@@ -195,6 +204,7 @@ void simple_eval(CPU *cpu) {
         nreg_eval(&cpu->DOR);
         out_eval(cpu);
     } 
+    print_bus("extDB ", cpu->extDataBus, cpu->N);
     dump_buses(&cpu->rf);
     //print_slots_ptr("TGL", cpu->tgl.out, 7);
 }
@@ -235,8 +245,8 @@ int main() {
         dummy
     );
 
-    SRAM ram;
-    sram_init(
+    FAKERAM ram;
+    fakeram_init(
         &ram, 
         N,
         &CLK, 
@@ -245,9 +255,13 @@ int main() {
         zero,
         16,
         cpu.RnotW,
-        cpu.extDataBus,
+        cpu.extDataBusD,
         cpu.outAddressBus
     );
+    for (int i=0; i < N; i++)
+        node_add_slot(&cpu.extDataBus[i], &ram.dataBusQ[i]);
+
+    fakeram_load_hex_words(&ram, "test/bin/test.hex", 0x8000);
 
     hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
     hex_to_slots(0x80, cpu.TGL_OUT, N);
@@ -269,6 +283,5 @@ int main() {
 
     printf("After micro code 0xF40\n");
     multi_eval(&cpu, &CLK);
-
 
 }

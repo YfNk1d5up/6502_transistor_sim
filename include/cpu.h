@@ -24,8 +24,10 @@ typedef struct {
     Node *addressLBus;
     Node *addressHBus;
 
+    Node *extDataBus;
+    Slot **extDataBusD;
+
     Slot *outDataBus;
-    Slot **extDataBus;
     Slot *outAddressBusL;
     Slot *outAddressBusH;
     Slot **outAddressBus;
