@@ -8,6 +8,7 @@
 #include "rcl.h"
 #include "clock.h"
 #include "timing.h"
+#include "fakeram.h"
 
 // ================= CPU =================
 
@@ -61,5 +62,5 @@ typedef struct {
 // ================= API =================
 
 void cpu_init(CPU *cpu, int N, Slot *CLK, Slot **one, Slot **zero, Slot *dummy);
-void multi_eval(CPU *cpu, Slot *CLK);
+void multi_eval(CPU *cpu, Slot *CLK, FAKERAM *ram);
 

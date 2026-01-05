@@ -196,29 +196,39 @@ void out_eval(CPU *cpu) {
     }
 }
 
-void simple_eval(CPU *cpu) {
+void simple_eval(CPU *cpu, FAKERAM *ram) {
     clock_eval(&cpu->clkGen);
+    
     for (int i=0; i < 10; i++) {
+        nreg_eval(&cpu->ABL);
+        nreg_eval(&cpu->ABH);
+        fakeram_eval(ram);
         nreg_eval(&cpu->IR);
         regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu); 
         nreg_eval(&cpu->DOR);
         out_eval(cpu);
     } 
-    print_bus("extDB ", cpu->extDataBus, cpu->N);
+    printf("------------------------------------------------\n");
+    print_bus("DB(ext)", cpu->extDataBus, cpu->N);
+    print_slots("RAM", ram->dataBusQ, cpu->N);
+    printf("------------------------------------------------\n");
     dump_buses(&cpu->rf);
+    print_slots_ptr("outAddressBus", cpu->outAddressBus, 2*cpu->N);
+    printf("------------------------------------------------\n");
+    printf("------------------------------------------------\n");
     //print_slots_ptr("TGL", cpu->tgl.out, 7);
 }
 
-void multi_eval(CPU *cpu, Slot *CLK) {
+void multi_eval(CPU *cpu, Slot *CLK, FAKERAM *ram) {
     CLK->value = SIG_0;
     printf("    CLOCK 0   \n");
-    simple_eval(cpu);
+    simple_eval(cpu, ram);
     printf("    CLOCK 1   \n");
     CLK->value = SIG_1;
-    simple_eval(cpu);
+    simple_eval(cpu, ram);
     printf("    CLOCK 0   \n");
     CLK->value = SIG_0;
-    simple_eval(cpu);
+    simple_eval(cpu, ram);
 }
 
 int main() {
@@ -261,27 +271,50 @@ int main() {
     for (int i=0; i < N; i++)
         node_add_slot(&cpu.extDataBus[i], &ram.dataBusQ[i]);
 
-    fakeram_load_hex_words(&ram, "test/bin/test.hex", 0x8000);
+    fakeram_load_hex_words(&ram, "test/bin/test.hex", 0x0000);
+
+    printf("ram at 0x0000 : %x \n", ram.mem[0x0000] & 0xff);
+    printf("ram at 0x0001 : %x \n", ram.mem[0x0001] & 0xff);
 
     hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
-    hex_to_slots(0x80, cpu.TGL_OUT, N);
+    hex_to_slots(0x00, cpu.TGL_OUT, N);
 
     printf("Inititial state buses\n");
-
-    multi_eval(&cpu, &CLK);
+    cpu.rcl.RnotW->value = SIG_1; // if not erase value.
+    multi_eval(&cpu, &CLK, &ram);
   
     //timing_eval(&cpu.tgl); not working now, need precharge and two clocks
     rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
     
     hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
-    hex_to_slots(0x40, cpu.TGL_OUT, N);
+    hex_to_slots(0x01, cpu.TGL_OUT, N);
 
-    printf("After micro code 0xF080\n");
-    multi_eval(&cpu, &CLK);
+    printf("After micro code 0xF000\n");
+    multi_eval(&cpu, &CLK, &ram);    
 
     rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
 
-    printf("After micro code 0xF40\n");
-    multi_eval(&cpu, &CLK);
+    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
+    hex_to_slots(0x02, cpu.TGL_OUT, N);
+
+    printf("After micro code 0xF001\n");
+    multi_eval(&cpu, &CLK, &ram);
+
+
+    
+    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
+
+    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
+    hex_to_slots(0x03, cpu.TGL_OUT, N);
+
+    printf("After micro code 0xF002\n");
+    multi_eval(&cpu, &CLK, &ram);
+
+
+    
+    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
+
+    printf("After micro code 0xF003\n");
+    multi_eval(&cpu, &CLK, &ram);
 
 }

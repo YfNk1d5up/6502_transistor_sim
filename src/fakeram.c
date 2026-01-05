@@ -12,7 +12,7 @@ uint32_t slot_bus_to_int(Slot **bus, int size)
 {
     uint32_t value = 0;
     for (int bit = 0; bit < size; bit++) {
-        if (bus[bit]->value)
+        if (bus[bit]->value == SIG_1)
             value |= (1u << bit);
     }
     return value;
