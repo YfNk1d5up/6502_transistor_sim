@@ -49,7 +49,42 @@ void cpu_init(
     for (int i = 0; i < N; i++)
         cpu->extDataBusD[i] = &cpu->extDataBus[i].resolved;
 
-    rcl_init(&cpu->rcl);
+    cpu->internalPD_Q = malloc(sizeof(Slot) * cpu->N);
+    for (int i = 0; i < cpu->N; i++)
+        cpu->internalPD_Q[i].value = SIG_Z;
+    nreg_init(
+        &cpu->PD, 
+        cpu->N,
+        1,
+        1,
+        cpu->clkGen.phi2
+    );
+    nreg_add_load_port(&cpu->PD, 0, cpu->extDataBusD, cpu->one[0]);  
+    nreg_add_enable_port(&cpu->PD, 0, cpu->internalPD_Q, cpu->dummy, cpu->one[0]);
+
+    cpu->internalIR_D = malloc(sizeof(Slot*) * cpu->N);
+    for (int i = 0; i < cpu->N; i++)
+        cpu->internalIR_D[i] = &cpu->internalPD_Q[i];     // bypass predecode logic  for now
+
+    tgl_init(&cpu->tgl, cpu->clkGen.phi1); // bypass predecode logic for now
+
+    nreg_init(
+        &cpu->IR, 
+        cpu->N,
+        1,
+        1,
+        cpu->clkGen.phi1 // bypass predecode logic for now
+    );
+
+    cpu->internalIR_Q  = malloc(sizeof(Slot) * N);
+    nreg_add_load_port(&cpu->IR, 0, cpu->internalIR_D, one[0]); // replace enable to T1.RDY 
+    nreg_add_enable_port(&cpu->IR, 0, cpu->internalIR_Q, cpu->dummy, one[0]);
+
+    cpu->internalRCL_D = malloc(sizeof(Slot*) * cpu->N);
+    for (int i = 0; i < cpu->N; i++)
+        cpu->internalRCL_D[i] = &cpu->internalIR_Q[i];  
+
+    rcl_init(&cpu->rcl, cpu->internalRCL_D, cpu->tgl.out);
     cpu->RnotW = cpu->rcl.RnotW;
 
     /* -------- Init regfile -------- */
@@ -155,25 +190,6 @@ void cpu_init(
         node_add_slot(&cpu->extDataBus[i], &cpu->extDataBusTristate[i].out.resolved);
     }
 
-    timing_init(&cpu->tgl, cpu->clkGen.phi1); // bypass predecode for now
-
-    nreg_init(
-        &cpu->IR, 
-        cpu->N,
-        1,
-        1,
-        cpu->clkGen.phi1 // bypass predecode for now
-    );
-
-    // bypass predecode for now
-    cpu->IR_IN  = malloc(sizeof(Slot*) * N);
-    for (int i = 0; i < N; i++)
-        cpu->IR_IN[i] = malloc(sizeof(Slot));
-    cpu->IR_OUT  = malloc(sizeof(Slot) * N);
-    cpu->TGL_OUT  = malloc(sizeof(Slot) * N);
-    nreg_add_load_port(&cpu->IR, 0, cpu->IR_IN, one[0]);  
-    nreg_add_enable_port(&cpu->IR, 0, cpu->IR_OUT, cpu->dummy, one[0]);
-
     cpu->decRom = &decodeRom;
 }
 
@@ -200,10 +216,13 @@ void simple_eval(CPU *cpu, FAKERAM *ram) {
     clock_eval(&cpu->clkGen);
     
     for (int i=0; i < 10; i++) {
+        nreg_eval(&cpu->PD);
         nreg_eval(&cpu->ABL);
         nreg_eval(&cpu->ABH);
         fakeram_eval(ram);
         nreg_eval(&cpu->IR);
+        tgl_eval(&cpu->tgl);
+        rcl_eval(&cpu->rcl);
         regfile_eval(&cpu->rf, &cpu->pc, &cpu->alu); 
         nreg_eval(&cpu->DOR);
         out_eval(cpu);
@@ -211,6 +230,8 @@ void simple_eval(CPU *cpu, FAKERAM *ram) {
     printf("------------------------------------------------\n");
     print_bus("DB(ext)", cpu->extDataBus, cpu->N);
     print_slots("RAM", ram->dataBusQ, cpu->N);
+    print_slots("IR", cpu->internalIR_Q, cpu->N);
+    print_slots_ptr("TGL", cpu->tgl.out, 7);
     printf("------------------------------------------------\n");
     dump_buses(&cpu->rf);
     print_slots_ptr("outAddressBus", cpu->outAddressBus, 2*cpu->N);
@@ -276,45 +297,16 @@ int main() {
     printf("ram at 0x0000 : %x \n", ram.mem[0x0000] & 0xff);
     printf("ram at 0x0001 : %x \n", ram.mem[0x0001] & 0xff);
 
-    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
-    hex_to_slots(0x00, cpu.TGL_OUT, N);
-
-    printf("Inititial state buses\n");
-    cpu.rcl.RnotW->value = SIG_1; // if not erase value.
+    printf("0x0002\n");
     multi_eval(&cpu, &CLK, &ram);
   
-    //timing_eval(&cpu.tgl); not working now, need precharge and two clocks
-    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
-    
-    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
-    hex_to_slots(0x01, cpu.TGL_OUT, N);
-
-    printf("After micro code 0xF000\n");
+    printf("0x0004\n");
     multi_eval(&cpu, &CLK, &ram);    
 
-    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
-
-    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
-    hex_to_slots(0x02, cpu.TGL_OUT, N);
-
-    printf("After micro code 0xF001\n");
+    printf("0x0008\n");
     multi_eval(&cpu, &CLK, &ram);
 
-
-    
-    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
-
-    hex_to_slots_ptr(0xF0, cpu.IR_IN, N);
-    hex_to_slots(0x03, cpu.TGL_OUT, N);
-
-    printf("After micro code 0xF002\n");
-    multi_eval(&cpu, &CLK, &ram);
-
-
-    
-    rcl_eval(&cpu.rcl, cpu.IR_OUT, cpu.TGL_OUT); // should be in simple eval then
-
-    printf("After micro code 0xF003\n");
+    printf("0x0010\n");
     multi_eval(&cpu, &CLK, &ram);
 
 }

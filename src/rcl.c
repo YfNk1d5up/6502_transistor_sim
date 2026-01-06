@@ -1,8 +1,14 @@
 #include "rcl.h"
 #include <assert.h>
 
-void rcl_init(RCL *rcl)
+void rcl_init(
+    RCL *rcl,     
+    Slot **ir,
+    Slot **timing)
 {
+    rcl->ir = ir;
+    rcl->timing = timing;
+
     for (int i = 0; i < RCL_BITS_COUNT; i++) {
         rcl->ctlSlots[i].value = SIG_0;
     }
@@ -126,19 +132,19 @@ void rcl_apply(RCL *rcl, uint64_t word)
     }
 }
 
-uint16_t build_key(Slot *ir, Slot *timing)
+uint16_t build_key(Slot **ir, Slot **timing)
 {
     uint16_t key = 0;
 
     // IR bits (8)
     for (int i = 0; i < 8; i++) {
-        if (ir[i].value == SIG_1)
+        if (ir[i]->value == SIG_1)
             key |= (1u << (8 + i));
     }
 
     // Timing bits (7), placed above IR
-    for (int i = 0; i < 8; i++) {
-        if (timing[i].value == SIG_1)
+    for (int i = 0; i < 7; i++) {
+        if (timing[i]->value == SIG_1)
             key |= (1u << i);
     }
 
@@ -146,16 +152,14 @@ uint16_t build_key(Slot *ir, Slot *timing)
 }
 
 void rcl_eval(
-    RCL *rcl,
-    Slot *ir,
-    Slot *timing
+    RCL *rcl
 )
 {
     // Default: everything off
     for (int i = 0; i < RCL_BITS_COUNT; i++)
         rcl->ctlSlots[i].value = SIG_0;
 
-    uint16_t key = build_key(ir, timing);
+    uint16_t key = build_key(rcl->ir, rcl->timing);
 
     // Lookup
     for (size_t i = 0; i < decodeRom.count; i++) {

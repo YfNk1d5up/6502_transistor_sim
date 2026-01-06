@@ -7,7 +7,7 @@
 #include "helpers.h"
 #include "rcl.h"
 #include "clock.h"
-#include "timing.h"
+#include "faketgl.h"
 #include "fakeram.h"
 
 // ================= CPU =================
@@ -38,7 +38,7 @@ typedef struct {
     ProgramCounter pc;
 
     RCL rcl; // Random Control Logic
-    TGL tgl; // Timing Generation Logic
+    FAKETGL tgl; // Timing Generation Logic
 
     DecodeRom *decRom; 
 
@@ -52,10 +52,11 @@ typedef struct {
     TriStateGate *extDataBusTristate;
 
     Slot *RnotW;
-    // TEST
-    Slot **IR_IN;
-    Slot *IR_OUT;
-    Slot *TGL_OUT;
+
+    Slot *internalPD_Q;
+    Slot ** internalIR_D;
+    Slot *internalIR_Q;
+    Slot **internalRCL_D;
 
 } CPU;
 

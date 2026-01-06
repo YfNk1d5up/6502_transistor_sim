@@ -13,7 +13,7 @@ SRC = src/transistor.c \
       src/pc.c \
       src/regfile.c \
       src/clock.c \
-      src/timing.c \
+      src/faketgl.c \
       src/fakeram.c \
       src/cpu.c
 

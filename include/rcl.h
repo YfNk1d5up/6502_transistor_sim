@@ -107,16 +107,20 @@ typedef struct {
     Slot *LOAD_DB7_P_N;
 
     Slot *RnotW;
+
+    Slot **ir;
+    Slot **timing;
 } RCL;
 
-void rcl_init(RCL *rcl);
+void rcl_init(
+    RCL *rcl, 
+    Slot **ir,
+    Slot **timing);
 
 void rcl_apply(RCL *rcl, uint64_t word);
 
-uint16_t build_key(Slot *ir, Slot *timing);
+uint16_t build_key(Slot **ir, Slot **timing);
 
 void rcl_eval(
-    RCL *rcl,
-    Slot *ir,
-    Slot *timing
+    RCL *rcl
 );
