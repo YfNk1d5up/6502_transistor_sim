@@ -77,7 +77,7 @@ void cpu_init(
     );
 
     cpu->internalIR_Q  = malloc(sizeof(Slot) * N);
-    nreg_add_load_port(&cpu->IR, 0, cpu->internalIR_D, one[0]); // replace enable to T1.RDY 
+    nreg_add_load_port(&cpu->IR, 0, cpu->internalIR_D, cpu->tgl.SYNC);
     nreg_add_enable_port(&cpu->IR, 0, cpu->internalIR_Q, cpu->dummy, one[0]);
 
     cpu->internalRCL_D = malloc(sizeof(Slot*) * cpu->N);
@@ -133,7 +133,8 @@ void cpu_init(
         &cpu->rf.regB, 
         &cpu->rf.regAH, 
         cpu->one[0], 
-        cpu->zero[0]
+        cpu->zero[0],
+        cpu->rcl
     );
 
     nreg_init(
@@ -247,9 +248,6 @@ void multi_eval(CPU *cpu, Slot *CLK, FAKERAM *ram) {
     printf("    CLOCK 1   \n");
     CLK->value = SIG_1;
     simple_eval(cpu, ram);
-    printf("    CLOCK 0   \n");
-    CLK->value = SIG_0;
-    simple_eval(cpu, ram);
 }
 
 int main() {
@@ -297,16 +295,19 @@ int main() {
     printf("ram at 0x0000 : %x \n", ram.mem[0x0000] & 0xff);
     printf("ram at 0x0001 : %x \n", ram.mem[0x0001] & 0xff);
 
-    printf("0x0002\n");
+    printf("0x0001\n");
     multi_eval(&cpu, &CLK, &ram);
   
-    printf("0x0004\n");
+    printf("0x0000\n");
     multi_eval(&cpu, &CLK, &ram);    
 
-    printf("0x0008\n");
+    printf("0x0202\n");
     multi_eval(&cpu, &CLK, &ram);
 
-    printf("0x0010\n");
+    printf("0x0204\n");
+    multi_eval(&cpu, &CLK, &ram);
+
+    printf("0x0208\n");
     multi_eval(&cpu, &CLK, &ram);
 
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "register.h"
 #include "alu.h"
+#include "rcl.h"
 
 typedef struct {
     int N;
@@ -31,8 +32,8 @@ void alu_init(
     NBitRegister *regB,
     NBitRegister *regAH,
     Slot *one_ctl,
-    Slot *zero_ctl
-    // opcodes
+    Slot *zero_ctl,
+    RCL rcl
     );
 
 void alu_eval(RegALU *alu);

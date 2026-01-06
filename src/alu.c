@@ -5,11 +5,6 @@
 // --- 1-bit ALU ---
 
 void alu_bit_init(ALUBit *bit, Slot *A, Slot *B, Slot *Cin) {
-    bit->op_add->value = SIG_0;
-    bit->op_and->value = SIG_0;
-    bit->op_or->value  = SIG_0;
-    bit->op_xor->value = SIG_0;
-    bit->op_sub->value = SIG_0;
     bit->result.value = SIG_Z;   // initialize ALU result to high-Z
 
     // XOR B with op_sub (B ^ sub)
@@ -58,7 +53,7 @@ void alu_bit_eval(ALUBit *bit) {
 
 // --- N-bit ALU ---
 
-void alu_nbit_init(ALUNBit *alu, int N, Slot *A, Slot *B) {
+void alu_nbit_init(ALUNBit *alu, int N, Slot *A, Slot *B, RCL rcl) {
     alu->N = N;
     alu->bits = malloc(sizeof(ALUBit) * N);
     alu->A = A;
@@ -66,19 +61,20 @@ void alu_nbit_init(ALUNBit *alu, int N, Slot *A, Slot *B) {
     alu->result = malloc(sizeof(Slot*) * N);
 
     // Initialize control pins
-    alu->op_add.value = SIG_0;
-    alu->op_and.value = SIG_0;
-    alu->op_or.value  = SIG_0;
-    alu->op_xor.value = SIG_0;
-    alu->op_sub.value = SIG_0;
+    alu->op_add = rcl.OP_SUMS;
+    alu->op_and = rcl.OP_ANDS;
+    alu->op_xor = rcl.OP_EORS;
+    alu->op_or = rcl.OP_ORS;
+    alu->op_sub = malloc(sizeof(Slot));
+    //missing shift right and no sub
 
     for (int i = 0; i < N; i++) {
         ALUBit *b = &alu->bits[i];
-        b->op_add = &alu->op_add;
-        b->op_and = &alu->op_and;
-        b->op_or  = &alu->op_or;
-        b->op_xor = &alu->op_xor;
-        b->op_sub = &alu->op_sub;
+        b->op_add = alu->op_add;
+        b->op_and = alu->op_and;
+        b->op_or  = alu->op_or;
+        b->op_xor = alu->op_xor;
+        b->op_sub = alu->op_sub;
 
         Slot *cin = i == 0 ? &alu->op_sub : &alu->bits[i-1].add.cout;
         alu_bit_init(b, &A[i], &B[i], cin);

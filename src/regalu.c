@@ -13,8 +13,8 @@ void alu_init(
     NBitRegister *regB,
     NBitRegister *regAH,
     Slot *one_ctl,
-    Slot *zero_ctl
-    // opcodes
+    Slot *zero_ctl,
+    RCL rcl
     )
 {
     alu->N = N;
@@ -36,7 +36,7 @@ void alu_init(
     nreg_add_enable_port(alu->regB, 0, alu->B, dummy, one_ctl);
     
     // Core ALU uses register outputs
-    alu_nbit_init(&alu->core, N, alu->A, alu->B);
+    alu_nbit_init(&alu->core, N, alu->A, alu->B, rcl);
 
     nreg_add_load_port(alu->regAH, 0, alu->core.result, one_ctl);
     

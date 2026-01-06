@@ -11,13 +11,14 @@ static Slot sync;
 static void clear_all(void)
 {
     t0.value   = SIG_0;
+    sync.value = SIG_0;
     t1x.value  = SIG_0;
     t2.value   = SIG_0;
     t3.value   = SIG_0;
     t4.value   = SIG_0;
     t5.value   = SIG_0;
     t6.value   = SIG_0;
-    sync.value = SIG_0;
+
 }
 
 /* ========================================================= */
@@ -27,6 +28,7 @@ void tgl_init(FAKETGL *tgl, Slot *CLK)
     tgl->CLK = CLK;
 
     tgl->notT0  = &t0;
+    tgl->SYNC = &sync;
     tgl->notT1X = &t1x;
     tgl->notT2  = &t2;
     tgl->notT3  = &t3;
@@ -34,7 +36,6 @@ void tgl_init(FAKETGL *tgl, Slot *CLK)
     tgl->notT5  = &t5;
     tgl->notT6  = &t6;
 
-    tgl->SYNC = &sync;
 
     tgl->out[0] = tgl->notT0;
     tgl->out[1] = tgl->notT1X;
@@ -44,7 +45,7 @@ void tgl_init(FAKETGL *tgl, Slot *CLK)
     tgl->out[5] = tgl->notT5;
     tgl->out[6] = tgl->notT6;
 
-    tgl->cycle   = 0;
+    tgl->cycle   = 7;
     tgl->prev_clk.value = SIG_0;
 
     clear_all();
@@ -73,17 +74,18 @@ void tgl_eval(FAKETGL *tgl)
         clear_all();
 
         tgl->cycle++;
-        if (tgl->cycle >= 7)
+        if (tgl->cycle > 7)
             tgl->cycle = 0;
 
         switch (tgl->cycle) {
             case 0: t0.value  = SIG_1; break;
-            case 1: t1x.value = SIG_1; sync.value = SIG_1; break;
-            case 2: t2.value  = SIG_1; break;
-            case 3: t3.value  = SIG_1; break;
-            case 4: t4.value  = SIG_1; break;
-            case 5: t5.value  = SIG_1; break;
-            case 6: t6.value  = SIG_1; break;
+            case 1: sync.value = SIG_1; break;
+            case 2: t1x.value = SIG_1; break;
+            case 3: t2.value  = SIG_1; break;
+            case 4: t3.value  = SIG_1; break;
+            case 5: t4.value  = SIG_1; break;
+            case 6: t5.value  = SIG_1; break;
+            case 7: t6.value  = SIG_1; break;
         }
     }
 

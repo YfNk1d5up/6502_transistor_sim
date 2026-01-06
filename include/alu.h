@@ -2,6 +2,7 @@
 #pragma once
 #include "gates.h"
 #include "fulladder.h"
+#include "rcl.h"
 
 // --- 1-bit ALU ---
 
@@ -69,13 +70,13 @@ typedef struct {
     ALUFlags flags;
 
     // Shared control pins
-    Slot op_add;
-    Slot op_and;
-    Slot op_or;
-    Slot op_xor;
-    Slot op_sub;
+    Slot *op_add;
+    Slot *op_and;
+    Slot *op_or;
+    Slot *op_xor;
+    Slot *op_sub;
 } ALUNBit;
 
-void alu_nbit_init(ALUNBit *alu, int N, Slot *A, Slot *B);
+void alu_nbit_init(ALUNBit *alu, int N, Slot *A, Slot *B, RCL rcl);
 
 void alu_nbit_eval(ALUNBit *alu);
