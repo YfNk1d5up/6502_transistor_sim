@@ -310,4 +310,27 @@ int main() {
     printf("0x0208\n");
     multi_eval(&cpu, &CLK, &ram);
 
+    printf("0x0210\n");
+    multi_eval(&cpu, &CLK, &ram);
+  
+    printf("0x0220\n");
+    multi_eval(&cpu, &CLK, &ram);    
+
+    printf("0x0240\n");
+    multi_eval(&cpu, &CLK, &ram);
+
+    printf("0x0201\n");
+    multi_eval(&cpu, &CLK, &ram);
+
+    printf("0x0200\n");
+    multi_eval(&cpu, &CLK, &ram);
+
+    printf("0x0202\n");
+    multi_eval(&cpu, &CLK, &ram);
+
+    printf("0x0204\n");
+    multi_eval(&cpu, &CLK, &ram);
+        
+    printf("0x0208\n");
+    multi_eval(&cpu, &CLK, &ram);
 }

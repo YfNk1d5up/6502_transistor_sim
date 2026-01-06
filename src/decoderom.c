@@ -74,6 +74,31 @@ static Microcode adding_loop_microcode[] = {
             RCL_BIT(RCL_LOAD_ADH_ABH) 
     },
     {
+        // 00000000
+        .key = (0x02 << 8) | (0x00), // nothing
+        .value =
+            RCL_BIT(RCL_RnotW) |
+            RCL_BIT(RCL_LOAD_PCL_PCL) |
+            RCL_BIT(RCL_EN_PCL_ADL) |
+            RCL_BIT(RCL_LOAD_PCH_PCH) |
+            RCL_BIT(RCL_EN_PCH_ADH) |
+            RCL_BIT(RCL_LOAD_ADL_ABL) |
+            RCL_BIT(RCL_LOAD_ADH_ABH) 
+    },
+    {
+        // 00000001
+        .key = (0x02 << 8) | (0x01), // Load PC = 0000 on ABL/ABH, incr PC
+        .value =
+            RCL_BIT(RCL_RnotW) |
+            RCL_BIT(RCL_LOAD_PCL_PCL) |
+            RCL_BIT(RCL_EN_PCL_ADL) |
+            RCL_BIT(RCL_LOAD_PCH_PCH) |
+            RCL_BIT(RCL_EN_PCH_ADH) |
+            RCL_BIT(RCL_EN_I_PC) |
+            RCL_BIT(RCL_LOAD_ADL_ABL) |
+            RCL_BIT(RCL_LOAD_ADH_ABH) 
+    },
+    {
         // 00100010
         .key = (0x02 << 8) | (0x02), // Read RAM at 0001 into DB and 
                                      // LOAD DB into B ALU and 0 into A ALU
@@ -91,6 +116,7 @@ static Microcode adding_loop_microcode[] = {
             RCL_BIT(RCL_LOAD_ADL_ABL) |
             RCL_BIT(RCL_LOAD_ADH_ABH) 
     },
+
     {
         // 
         .key = (0x02 << 8) | (0x04), //  Result on SB and load into ALU A and sum again
@@ -123,6 +149,40 @@ static Microcode adding_loop_microcode[] = {
             RCL_BIT(RCL_LOAD_ADL_ABL) |
             RCL_BIT(RCL_LOAD_ADH_ABH) 
     },
+    {
+        .key = (0x02 << 8) | (0x10), // Nothing
+        .value =
+            RCL_BIT(RCL_RnotW) |
+            RCL_BIT(RCL_LOAD_PCL_PCL) |
+            RCL_BIT(RCL_EN_PCL_ADL) |
+            RCL_BIT(RCL_LOAD_PCH_PCH) |
+            RCL_BIT(RCL_EN_PCH_ADH) |
+            RCL_BIT(RCL_LOAD_ADL_ABL) |
+            RCL_BIT(RCL_LOAD_ADH_ABH) 
+    },
+    {
+        .key = (0x02 << 8) | (0x20), // Nothing
+        .value =
+            RCL_BIT(RCL_RnotW) |
+            RCL_BIT(RCL_LOAD_PCL_PCL) |
+            RCL_BIT(RCL_EN_PCL_ADL) |
+            RCL_BIT(RCL_LOAD_PCH_PCH) |
+            RCL_BIT(RCL_EN_PCH_ADH) |
+            RCL_BIT(RCL_LOAD_ADL_ABL) |
+            RCL_BIT(RCL_LOAD_ADH_ABH) 
+    },
+    {
+        .key = (0x02 << 8) | (0x40), // Nothing
+        .value =
+            RCL_BIT(RCL_RnotW) |
+            RCL_BIT(RCL_LOAD_PCL_PCL) |
+            RCL_BIT(RCL_EN_PCL_ADL) |
+            RCL_BIT(RCL_LOAD_PCH_PCH) |
+            RCL_BIT(RCL_EN_PCH_ADH) |
+            RCL_BIT(RCL_LOAD_ADL_ABL) |
+            RCL_BIT(RCL_LOAD_ADH_ABH) 
+    },
+
 };
 
 DecodeRom decodeRom = {
